@@ -9,15 +9,17 @@
 #include"joueur.h"
 typedef struct Plateau
 {
-  int camps[12];
+  int champs[12];
 } Plateau;
 //construction
 Plateau* constructPlateau();
 //jeu
-int jouerUnCoup(Plateau* plateau, Joueur* joueur, int champ);
-int champ(Plateau* plateau, int champ);
+int coupValide(Plateau* plateau, Joueur* joueur, int champ);//champ entre 1 et 6
+// renvoie -1 si en dehors de limite possible , 0 si champ vide, 1 si coup possible
+void jouerUnCoup(Plateau* plateau, Joueur* joueur, int champ);//champ entre 1 et 6
+int recupererChamp(Plateau* plateau, Joueur* joueur, int champ);
 int joueurPeutJouer(Plateau* plateau, Joueur* joueur);
-int finPartie(Plateau* plateau, Joueur* joueurFinal);
+void finPartie(Plateau* plateau, Joueur* joueurFinal);
 //déconstruction
 void destructPlateau(Plateau* plateau);
 
