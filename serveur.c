@@ -13,8 +13,11 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+
+#include "constants.h"
 
 int main(int argc, char** argv )
 { char datas[] = "hello\n";
@@ -47,6 +50,13 @@ int main(int argc, char** argv )
   /* attend la connection d'un client */
   clilen = sizeof (cli_addr);
 
+  // Source - https://stackoverflow.com/a/7108031
+  // Posted by R.. GitHub STOP HELPING ICE
+  // Retrieved 2026-10-21, License - CC BY-SA 3.0
+
+  unsigned int size = next_pow2(USERNAME_SIZE*MAX_PLAYER_ONLINE + 1);
+
+  char *shared_usename = mmap(0,size,PROT_READ|PROT_WRITE,MAP_SHARED|MAP_ANONYMOUS,-1,0);
 
 
   while (1)
@@ -66,16 +76,20 @@ int main(int argc, char** argv )
         pid = getpid();
 
         /* traiter la communication */
-        int is_end = 1;
-        while (is_end)
-        { while (is_end && read(scomm,&c,1)!=1);
-          printf("%d : %c\n",pid, c);
-          if (c == 'q')
-          {
-            printf("\nend comm for process %d\n", pid);
-            is_end = 0;
-          }
-        }
+        char buffer[BUFFER_SIZE];
+
+        recv(scomm,buffer,BUFFER_SIZE*sizeof(char), 0);
+        /* on a dans le buffer un username du client qui tente de se co avec un username */
+        char username[USERNAME_SIZE];
+        username[0] = 0;
+        if (strlen(buffer)<USERNAME_SIZE){strcpy(username, buffer);}
+        else
+        {send (scomm, username, sizeof(char),0);}
+        
+
+
+
+
 
         close(scomm);
         exit(0); /* on force la terminaison du fils */

@@ -14,6 +14,8 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+#include "constants.h"
+
 int main(int argc, char** argv )
 {
   int    sockfd,newsockfd,clilen,chilpid,ok,nleft,nbwriten;
@@ -45,7 +47,8 @@ int main(int argc, char** argv )
 
   /* repete dans le socket tout ce qu'il entend */
   int connected = 1;
-  char username[61];
+
+  char username[USERNAME_SIZE];
 
   int usernameValid = 0;
 
@@ -55,9 +58,10 @@ int main(int argc, char** argv )
     scanf("%s", &username);
     printf("\nUsername entered :%s\n", username);
     printf("Sending to the server to verify validity of username");
-    send (sockfd, username, strlen(username),0);
+    send (sockfd, username, strlen(username)*sizeof(char),0);
 
-    int len = 60*100 + 1;
+    unsigned int len = next_pow2(USERNAME_SIZE*MAX_PLAYER_ONLINE + 1);
+
     char buffer[len];
     buffer[len-1] = EOF;
     recv(sockfd,buffer,len*sizeof(char),0);
