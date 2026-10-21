@@ -7,14 +7,15 @@
 
 #include<stdlib.h>
 #include"joueur.h"
-typedef struct Plateau{
+typedef struct Plateau
+{
   int camps[12];
-}Plateau;
+} Plateau;
 //construction
 Plateau* constructPlateau();
 //jeu
 int jouerUnCoup(Plateau* plateau, Joueur* joueur, int champ);
-int champ(Plateau* plateau,int champ);
+int champ(Plateau* plateau, int champ);
 int joueurPeutJouer(Plateau* plateau, Joueur* joueur);
 int finPartie(Plateau* plateau, Joueur* joueurFinal);
 //déconstruction
