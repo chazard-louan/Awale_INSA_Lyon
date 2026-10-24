@@ -11,5 +11,7 @@ struct Joueur
   int score;
 };
 typedef struct Joueur Joueur;
+Joueur* constructJoueur(int id);
+void destructJoueur(Joueur* joueur);
 
 #endif //AWALE_JOUEUR_H
