@@ -55,16 +55,34 @@ void afficherPlateau(Plateau* plateau, Joueur* joueur1, Joueur* joueur2)
 int main()
 {
     Plateau* plateau=constructPlateau();
+    Joueur** joueurs=malloc(sizeof(Joueur)*2);
     Joueur* joueur1=constructJoueur(1);
     Joueur* joueur2=constructJoueur(2);
-    afficherPlateau(plateau,joueur1,joueur2);
-    /*int fini=0;
-    while(!fini){
+    int coup;
+    int coupValide;
+    joueurs[0]=joueur1;
+    joueurs[1]=joueur2;
+    afficherPlateau(plateau,joueurs[0],joueurs[1]);
+    jouerUnCoup(plateau,joueurs[0],5);
+    afficherPlateau(plateau,joueurs[0],joueurs[1]);
+    
+    int fini=0;
+    int joueurQuiJoue=0
+    while(!fini)
+      {
+      coupValide=0;
+      while(coupValide==0)
+	{
+	  scanf("%d",&coup);
+	  if(
+      
+      
 
-    }*/
+    }
     destructPlateau(plateau);
     destructJoueur(joueur1);
     destructJoueur(joueur2);
+    free(joueurs);
     return 0;
     
     

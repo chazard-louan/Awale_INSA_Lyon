@@ -50,6 +50,7 @@ void jouerUnCoup(Plateau* plateau, Joueur* joueur, int champ)
 
     indChamp=(camp)*6+(champ-1);
     valChamp=plateau->champs[indChamp];
+    plateau->champs[indChamp]=0;
 
     nbChampSaute=valChamp/12;
     for(int graine=1; graine<=(valChamp+nbChampSaute); graine++)
