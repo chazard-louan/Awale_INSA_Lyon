@@ -20,7 +20,7 @@ void afficherPlateau(Plateau* plateau, Joueur* joueur1, Joueur* joueur2)
 41
         printf("_");
 
-    printf("\n| S1 |");
+    printf("\n| S%d |",joueur1->id);
     for(i=6;i>=1;i--)
     {
         printf(" %2d |",recupererChamp(plateau,joueur1,i));
@@ -39,12 +39,12 @@ void afficherPlateau(Plateau* plateau, Joueur* joueur1, Joueur* joueur2)
     {
         printf(" %2d |",recupererChamp(plateau,joueur2,i));
     }
-    printf((" S2 |\n"));
+    printf(" S%d |\n",joueur2->id);
     for(i=0;i<41;i++)
     {
         printf("-");
     }
-    printf("\n       ");
+    printf("\n        ");
     for(i=1;i<=6;i++)
     {
         printf("%d    ",i);
@@ -59,26 +59,46 @@ int main()
     Joueur* joueur1=constructJoueur(1);
     Joueur* joueur2=constructJoueur(2);
     int coup;
-    int coupValide;
+    int isValide;
     joueurs[0]=joueur1;
     joueurs[1]=joueur2;
-    afficherPlateau(plateau,joueurs[0],joueurs[1]);
-    jouerUnCoup(plateau,joueurs[0],5);
-    afficherPlateau(plateau,joueurs[0],joueurs[1]);
+    
     
     int fini=0;
-    int joueurQuiJoue=0
+    int joueurQuiJoue=0;
     while(!fini)
-      {
-      coupValide=0;
-      while(coupValide==0)
-	{
-	  scanf("%d",&coup);
-	  if(
-      
-      
+    {
+        printf("\n");
+        afficherPlateau(plateau,joueurs[0],joueurs[1]);
+        printf("\n");
 
+        isValide=0;
+        while(isValide!=1)
+	    {
+            printf("coup du joueur %d: \t",joueurs[joueurQuiJoue]->id);
+            scanf("%d",&coup);
+            isValide=coupValide(plateau,joueurs[joueurQuiJoue],coup);
+            if(isValide!=1)
+            {
+                printf("coup non valide\n");
+            }
+        }
+        jouerUnCoup(plateau, joueurs[joueurQuiJoue], coup);
+        if(joueurs[joueurQuiJoue]->score>=25){
+            fini=1;
+        }
+        
+        if(!joueurPeutJouer(plateau,joueurs[(joueurQuiJoue+1)%2]))
+        {
+            finPartieFamine(plateau, joueurs[joueurQuiJoue]);
+            fini=1;
+        }
+        joueurQuiJoue=(joueurQuiJoue+1)%2;
+
+      
     }
+    
+    afficherPlateau(plateau,joueurs[0],joueurs[1]);
     destructPlateau(plateau);
     destructJoueur(joueur1);
     destructJoueur(joueur2);

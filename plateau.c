@@ -15,6 +15,21 @@ Plateau* constructPlateau()
     return plateau;
 }
 
+int campVide(Plateau* plateau,int idJoueur){
+    int estVide=1;
+    int camp=idJoueur-1;
+    for(int indChamp=0;indChamp<6;indChamp++)
+    {
+        if (plateau->champs[indChamp+camp*6] != 0 )
+        {
+            estVide=0;
+            break;
+        }
+    }
+    return estVide;
+
+}
+
 int recupererChamp(Plateau* plateau,Joueur* joueur, int champ)
 {
     int camp=joueur->id-1;
@@ -29,13 +44,23 @@ int recupererChamp(Plateau* plateau,Joueur* joueur, int champ)
 int coupValide(Plateau* plateau, Joueur* joueur, int champ)
 {
     int indChamp;
+    int valChamp;
     if(champ<1 || champ>6){
-        return -1;
-    }
-    indChamp=(joueur->id-1)*6+(champ-1);
-    if(plateau->champs[indChamp]==0){
         return 0;
     }
+    indChamp=(joueur->id-1)*6+(champ-1);
+    valChamp=plateau->champs[indChamp];
+    if(valChamp==0){
+        return -1;
+    }
+    if(campVide(plateau,(joueur->id)%2+1) && ((indChamp+valChamp)%12)/6==indChamp/6){
+        return -2;
+    }
+    
+
+
+
+
     return 1;
 }
 void jouerUnCoup(Plateau* plateau, Joueur* joueur, int champ)
@@ -77,9 +102,9 @@ int joueurPeutJouer(Plateau* plateau, Joueur* joueur)
 {
     int peutJouer=0;
     int camp=joueur->id-1;
-    for(int indChamp=0;indChamp<6;indChamp++)
+    for(int indChamp=1;indChamp<=6;indChamp++)
     {
-        if (plateau->champs[indChamp+camp*6] != 0 )
+        if (coupValide(plateau,joueur,indChamp) != 1 )
         {
             peutJouer=1;
             break;
@@ -93,7 +118,7 @@ void finPartieFamine(Plateau* plateau, Joueur* joueurFinal)
     int camp=joueurFinal->id-1;
     for(int indChamp=0;indChamp<6;indChamp++)
     {
-       joueurFinal->score+=plateau->champs[indChamp];
+       joueurFinal->score+=plateau->champs[indChamp+camp*6];
     }
     
 }

@@ -19,7 +19,7 @@ int coupValide(Plateau* plateau, Joueur* joueur, int champ);//champ entre 1 et 6
 void jouerUnCoup(Plateau* plateau, Joueur* joueur, int champ);//champ entre 1 et 6
 int recupererChamp(Plateau* plateau, Joueur* joueur, int champ);
 int joueurPeutJouer(Plateau* plateau, Joueur* joueur);
-void finPartie(Plateau* plateau, Joueur* joueurFinal);
+void finPartieFamine(Plateau* plateau, Joueur* joueurFinal);
 //déconstruction
 void destructPlateau(Plateau* plateau);
 
