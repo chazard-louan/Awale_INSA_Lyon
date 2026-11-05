@@ -14,6 +14,14 @@ Plateau* constructPlateau()
     }
     return plateau;
 }
+Plateau* copiePlateau(Plateau* plateau){
+    Plateau* copie=malloc(sizeof(Plateau));//pas d'appel de construct plateau pour sauter l'étape de l'initialisation des champs
+    for(int i=0;i<12;i++)
+    {
+        copie->champs[i]=plateau->champs[i];
+    }
+    return copie;
+}
 
 int campVide(Plateau* plateau,int idJoueur){
     int estVide=1;
@@ -41,10 +49,12 @@ int recupererChamp(Plateau* plateau,Joueur* joueur, int champ)
     return plateau->champs[champ-1+camp*6];
     
 }
+
 int coupValide(Plateau* plateau, Joueur* joueur, int champ)
 {
     int indChamp;
     int valChamp;
+    Plateau* plateauCoupJoue;
     if(champ<1 || champ>6){
         return 0;
     }
@@ -53,17 +63,19 @@ int coupValide(Plateau* plateau, Joueur* joueur, int champ)
     if(valChamp==0){
         return -1;
     }
-    if(campVide(plateau,(joueur->id)%2+1) && ((indChamp+valChamp)%12)/6==indChamp/6){
+    plateauCoupJoue=copiePlateau(plateau);
+    jouerUnCoup(plateauCoupJoue, joueur,champ);
+    if(campVide(plateauCoupJoue,(joueur->id%2)+1))//(joueur->id%2)+1 correspond à l'id de l'autre joueur
+    {
+        destructPlateau(plateauCoupJoue);
         return -2;
     }
+    destructPlateau(plateauCoupJoue);
     
-
-
-
-
     return 1;
 }
-void jouerUnCoup(Plateau* plateau, Joueur* joueur, int champ)
+
+void jouerUnCoup(Plateau* plateau, Joueur* joueur, int champ)// pour lancer cette fonction, coup valide ne doit pas renvoyer 0 ou -1
 {
     int indChamp;//l'indice du champ choisi dans le plateau(par rapport au tableau de champ)
     int valChamp;
@@ -78,7 +90,7 @@ void jouerUnCoup(Plateau* plateau, Joueur* joueur, int champ)
     plateau->champs[indChamp]=0;
 
     nbChampSaute=valChamp/12;
-    for(int graine=1; graine<=(valChamp+nbChampSaute); graine++)
+    for(int graine=1; graine<=(valChamp+nbChampSaute); graine++)// le for traverse tous les champs (en fonction du nombre de graine) mais ne donne pas de graine dans le champ d'origine
     {
         trouAVerser=(graine+indChamp)%12;
         if (trouAVerser!=indChamp)
@@ -93,6 +105,7 @@ void jouerUnCoup(Plateau* plateau, Joueur* joueur, int champ)
     {
         joueur->score += plateau->champs[trouAVerser];
         plateau->champs[trouAVerser]=0;
+        trouAVerser--;
     }
 
     
@@ -104,7 +117,7 @@ int joueurPeutJouer(Plateau* plateau, Joueur* joueur)
     int camp=joueur->id-1;
     for(int indChamp=1;indChamp<=6;indChamp++)
     {
-        if (coupValide(plateau,joueur,indChamp) != 1 )
+        if (coupValide(plateau,joueur,indChamp) == 1 )
         {
             peutJouer=1;
             break;
@@ -122,6 +135,8 @@ void finPartieFamine(Plateau* plateau, Joueur* joueurFinal)
     }
     
 }
+
+
 
 void destructPlateau(Plateau* plateau)
 {

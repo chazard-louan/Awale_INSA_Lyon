@@ -78,10 +78,19 @@ int main()
             printf("coup du joueur %d: \t",joueurs[joueurQuiJoue]->id);
             scanf("%d",&coup);
             isValide=coupValide(plateau,joueurs[joueurQuiJoue],coup);
-            if(isValide!=1)
+            if(isValide==0)
             {
-                printf("coup non valide\n");
+                printf("coup en dehors des limites\n");
             }
+            else if(isValide==-1)
+            {
+                printf("champs vide\n");
+            }
+            else if(isValide==-2)
+            {
+                printf("affame l'adversaire\n");
+            }
+
         }
         jouerUnCoup(plateau, joueurs[joueurQuiJoue], coup);
         if(joueurs[joueurQuiJoue]->score>=25){
@@ -91,6 +100,7 @@ int main()
         if(!joueurPeutJouer(plateau,joueurs[(joueurQuiJoue+1)%2]))
         {
             finPartieFamine(plateau, joueurs[joueurQuiJoue]);
+            printf("dédératsortaientducraterejusquacequej'bougeletrou");
             fini=1;
         }
         joueurQuiJoue=(joueurQuiJoue+1)%2;
