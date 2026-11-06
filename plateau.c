@@ -23,7 +23,8 @@ Plateau* copiePlateau(Plateau* plateau){
     return copie;
 }
 
-int campVide(Plateau* plateau,int idJoueur){
+int campVide(Plateau* plateau,int idJoueur)
+{//permet de dire si un des deux camps est vide (repéré par l'identifiant de son joueur)  
     int estVide=1;
     int camp=idJoueur-1;
     for(int indChamp=0;indChamp<6;indChamp++)
@@ -52,8 +53,9 @@ int recupererChamp(Plateau* plateau,Joueur* joueur, int champ)
 
 int coupValide(Plateau* plateau, Joueur* joueur, int champ)
 {
-    int indChamp;
+    int indChamp;//l'indice du champ choisi dans le plateau(par rapport au tableau de champ donc de 0 à 12)
     int valChamp;
+    Joueur* doublure;
     Plateau* plateauCoupJoue;
     if(champ<1 || champ>6){
         return 0;
@@ -63,11 +65,14 @@ int coupValide(Plateau* plateau, Joueur* joueur, int champ)
     if(valChamp==0){
         return -1;
     }
+    doublure=constructJoueur(joueur->id);
     plateauCoupJoue=copiePlateau(plateau);
-    jouerUnCoup(plateauCoupJoue, joueur,champ);
-    if(campVide(plateauCoupJoue,(joueur->id%2)+1))//(joueur->id%2)+1 correspond à l'id de l'autre joueur
+    jouerUnCoup(plateauCoupJoue, doublure,champ);
+    destructJoueur(doublure);
+    if(campVide(plateauCoupJoue,(joueur->id%2)+1))//(joueur->id%2)+1 correspond à l'id de l'autre joueur SI ON SUPPOSE QUE LES IDENTIFIANT SONT 1 ET 2
     {
         destructPlateau(plateauCoupJoue);
+
         return -2;
     }
     destructPlateau(plateauCoupJoue);
@@ -90,7 +95,7 @@ void jouerUnCoup(Plateau* plateau, Joueur* joueur, int champ)// pour lancer cett
     plateau->champs[indChamp]=0;
 
     nbChampSaute=valChamp/12;
-    for(int graine=1; graine<=(valChamp+nbChampSaute); graine++)// le for traverse tous les champs (en fonction du nombre de graine) mais ne donne pas de graine dans le champ d'origine
+    for(int graine=1; graine<=(valChamp+nbChampSaute); graine++)// le for traverse tous les champs (si le nombre de graine le permet) mais ne donne pas de graine dans le champ d'origine
     {
         trouAVerser=(graine+indChamp)%12;
         if (trouAVerser!=indChamp)
@@ -112,7 +117,7 @@ void jouerUnCoup(Plateau* plateau, Joueur* joueur, int champ)// pour lancer cett
 }
 
 int joueurPeutJouer(Plateau* plateau, Joueur* joueur)
-{
+{//sert notamment à proc la fin par famine 
     int peutJouer=0;
     int camp=joueur->id-1;
     for(int indChamp=1;indChamp<=6;indChamp++)

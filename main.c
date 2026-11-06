@@ -52,20 +52,12 @@ void afficherPlateau(Plateau* plateau, Joueur* joueur1, Joueur* joueur2)
     printf("\n\t\t Joueur 2\n");
 }
 
-int main()
+void boucleJeu(Plateau* plateau,Joueur** joueurs,int coteDepart)
 {
-    Plateau* plateau=constructPlateau();
-    Joueur** joueurs=malloc(sizeof(Joueur)*2);
-    Joueur* joueur1=constructJoueur(1);
-    Joueur* joueur2=constructJoueur(2);
     int coup;
     int isValide;
-    joueurs[0]=joueur1;
-    joueurs[1]=joueur2;
-    
-    
     int fini=0;
-    int joueurQuiJoue=0;
+    int joueurQuiJoue=coteDepart;
     while(!fini)
     {
         printf("\n");
@@ -109,10 +101,90 @@ int main()
     }
     
     afficherPlateau(plateau,joueurs[0],joueurs[1]);
+    
+
+
+
+}
+void jeuClassique()
+{
+    Plateau* plateau=constructPlateau();
+    Joueur** joueurs=malloc(sizeof(Joueur*)*2);
+    Joueur* joueur1=constructJoueur(1);
+    Joueur* joueur2=constructJoueur(2);
+    int coup;
+    int isValide;
+    joueurs[0]=joueur1;
+    joueurs[1]=joueur2;
+    
+    boucleJeu(plateau,joueurs,0);
+
+    afficherPlateau(plateau,joueurs[0],joueurs[1]);
     destructPlateau(plateau);
     destructJoueur(joueur1);
     destructJoueur(joueur2);
     free(joueurs);
+
+}
+
+void testcollecte()
+{
+    Plateau* plateau=constructPlateau();
+    Joueur** joueurs=malloc(sizeof(Joueur*)*2);
+    joueurs[0]=constructJoueur(1);
+    joueurs[1]=constructJoueur(2);
+    plateau->champs[6]=1;
+    plateau->champs[8]=10;
+    afficherPlateau(plateau,joueurs[0],joueurs[1]);
+    jouerUnCoup(plateau, joueurs[1],3 );
+    afficherPlateau(plateau,joueurs[0],joueurs[1]);
+    jouerUnCoup(plateau, joueurs[0], 2);
+    afficherPlateau(plateau,joueurs[0],joueurs[1]);
+    destructPlateau(plateau);
+    destructJoueur(joueurs[0]);
+    destructJoueur(joueurs[1]);
+    free(joueurs);
+}
+void testFinPartie(){
+    Plateau* plateau=constructPlateau();
+    Joueur** joueurs=malloc(sizeof(Joueur*)*2);
+    joueurs[0]=constructJoueur(1);
+    joueurs[1]=constructJoueur(2);
+    joueurs[1]->score=18;
+    joueurs[0]->score=24;
+    plateau->champs[0]=0;
+    plateau->champs[1]=0;
+    plateau->champs[2]=0;
+    plateau->champs[3]=3;
+    plateau->champs[4]=0;
+    plateau->champs[5]=0;
+    plateau->champs[6]=0;
+    plateau->champs[7]=0;
+    plateau->champs[8]=0;
+    plateau->champs[9]=3;
+    plateau->champs[10]=0;
+    plateau->champs[11]=0;
+    
+    boucleJeu(plateau,joueurs, 1);
+
+    afficherPlateau(plateau,joueurs[0],joueurs[1]);
+
+
+
+
+    destructPlateau(plateau);
+    destructJoueur(joueurs[0]);
+    destructJoueur(joueurs[1]);
+    free(joueurs);
+
+}
+
+int main()
+{
+    jeuClassique();
+    //testcollecte();
+    //testFinPartie();
+    
     return 0;
     
     
