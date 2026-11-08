@@ -137,6 +137,7 @@ void finPartieFamine(Plateau* plateau, Joueur* joueurFinal)
     for(int indChamp=0;indChamp<6;indChamp++)
     {
        joueurFinal->score+=plateau->champs[indChamp+camp*6];
+       plateau->champs[indChamp+camp*6]=0;
     }
     
 }

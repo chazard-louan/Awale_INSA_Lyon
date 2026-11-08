@@ -88,19 +88,20 @@ void boucleJeu(Plateau* plateau,Joueur** joueurs,int coteDepart)
         if(joueurs[joueurQuiJoue]->score>=25){
             fini=1;
         }
-        
-        if(!joueurPeutJouer(plateau,joueurs[(joueurQuiJoue+1)%2]))
+        joueurQuiJoue=(joueurQuiJoue+1)%2;
+        if(!joueurPeutJouer(plateau,joueurs[joueurQuiJoue]))
         {
+            afficherPlateau(plateau,joueurs[0],joueurs[1]);
             finPartieFamine(plateau, joueurs[joueurQuiJoue]);
-            printf("dédératsortaientducraterejusquacequej'bougeletrou");
+            
             fini=1;
         }
-        joueurQuiJoue=(joueurQuiJoue+1)%2;
+        
 
       
     }
     
-    afficherPlateau(plateau,joueurs[0],joueurs[1]);
+    
     
 
 
@@ -152,18 +153,18 @@ void testFinPartie(){
     joueurs[1]=constructJoueur(2);
     joueurs[1]->score=18;
     joueurs[0]->score=24;
-    plateau->champs[0]=0;
+    plateau->champs[0]=3;
     plateau->champs[1]=0;
     plateau->champs[2]=0;
-    plateau->champs[3]=3;
+    plateau->champs[3]=0;
     plateau->champs[4]=0;
     plateau->champs[5]=0;
     plateau->champs[6]=0;
     plateau->champs[7]=0;
     plateau->champs[8]=0;
-    plateau->champs[9]=3;
+    plateau->champs[9]=0;
     plateau->champs[10]=0;
-    plateau->champs[11]=0;
+    plateau->champs[11]=3;
     
     boucleJeu(plateau,joueurs, 1);
 
@@ -181,9 +182,10 @@ void testFinPartie(){
 
 int main()
 {
-    jeuClassique();
+    //jeuClassique();
     //testcollecte();
-    //testFinPartie();
+    testFinPartie();
+    
     
     return 0;
     
