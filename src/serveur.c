@@ -23,7 +23,9 @@ void *comm_client(void *args)
   int fd = *(int *)args;
   free(args);
 
-  printf("Nous sommes dans le thread.\n");
+  // give an id to the player needs to be thread safe
+
+  printf("We are in a thread.\n");
 
   char buffer[BUFFER_SIZE] = {0};
 
@@ -45,16 +47,22 @@ void *comm_client(void *args)
 
   // TODO: Check whether username already exists
 
+  // TODO : adding it to the hash table of connected players (using id to get names)
+
   char response = 1;
 
   if (send(fd, &response, sizeof(response), 0) != sizeof(response)) {
-  close(fd);
-  return NULL;
-}
+    close(fd);
+    return NULL;
+  }
 
-printf("Client connected with username: %s\n", username);
+  printf("Client connected with username: %s\n", username);
 
   // TODO: Handle client communication here
+
+  // TODO : Wait for the client to ask something like knowing list of players
+
+  // TODO : respond with the list of player and ids so the clients can respond back for starting a match with another client
 
   close(fd);
   return NULL;
