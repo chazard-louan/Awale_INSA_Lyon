@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "joueur.h"
-#include "plateau.h"
+#include "../plateau.h"
 
 
 void afficherPlateau(Plateau* plateau, Joueur* joueur1, Joueur* joueur2)

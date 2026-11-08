@@ -6,7 +6,7 @@
 #define AWALE_PLATEAU_H
 
 #include<stdlib.h>
-#include"joueur.h"
+#include "joueur.h"
 typedef struct Plateau
 {
   int champs[12];

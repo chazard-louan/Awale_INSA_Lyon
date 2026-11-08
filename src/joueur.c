@@ -2,7 +2,7 @@
 // Created by louan on 21/10/2026.
 //
 #include <stdlib.h>
-#include "joueur.h"
+#include "../joueur.h"
 
 Joueur* constructJoueur(int id)
 {
