@@ -8,6 +8,7 @@
  */
 
 #include "serveur.h"
+#include "liste_client.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,6 +18,8 @@
 #include <errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+
+TableClient* tableClient;
 
 void *comm_client(void *args)
 {
@@ -30,24 +33,40 @@ void *comm_client(void *args)
   char buffer[BUFFER_SIZE] = {0};
 
   char username[USERNAME_SIZE] = {0};
+  int username_good = 0;
+  while (!username_good)
+  {
+    ssize_t received = recv(fd, username, sizeof(username), MSG_WAITALL);
 
-  ssize_t received = recv(fd, username, sizeof(username), MSG_WAITALL);
+    if (received != sizeof(username)) {
+      char response = 0;
+      send(fd, &response, sizeof(response), 0);
+    }
 
-  if (received != sizeof(username)) {
-    close(fd);
-    return NULL;
+    if (username[USERNAME_SIZE - 1] != '\0') {
+      char response = 0;
+      send(fd, &response, sizeof(response), 0);
+    }
+
+    // Check whether username already exists
+    //thread safe
+    pthread_mutex_lock(&tableClient->mutex);
+    while (tablePleine(tableClient)) {pthread_cond_wait(&tableClient->cond, &tableClient->mutex);}
+
+
+    if (!nomDejaPris(tableClient, username))
+    {
+      ajoutNouveauClient(tableClient, fd, username);
+      username_good = 1;
+    }
+    else
+    {
+      char response = 0;
+      send(fd, &response, sizeof(response), 0);
+    }
+    pthread_cond_signal(&tableClient->cond);
+    pthread_mutex_unlock(&tableClient->mutex);
   }
-
-  if (username[USERNAME_SIZE - 1] != '\0') {
-    char response = 0;
-    send(fd, &response, sizeof(response), 0);
-    close(fd);
-    return NULL;
-  }
-
-  // TODO: Check whether username already exists
-
-  // TODO : adding it to the hash table of connected players (using id to get names)
 
   char response = 1;
 
@@ -120,7 +139,10 @@ int main(int argc, char **argv)
 
     printf("Server listening...\n");
 
-    while (1) {
+
+    tableClient = initialiserTableClient(MAX_PLAYER_ONLINE);
+    int end = 0;
+    while (!end) {
         struct sockaddr_in cli_addr = {0};
         socklen_t clilen = sizeof(cli_addr);
 
@@ -169,6 +191,7 @@ int main(int argc, char **argv)
         // Detach thread (no need to join it later)
         pthread_detach(threadComm);
     }
+    destructTableClient(tableClient);
 
     close(sockfd);
     return EXIT_SUCCESS;

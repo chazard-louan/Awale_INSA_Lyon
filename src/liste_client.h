@@ -5,11 +5,7 @@
 #ifndef AWALE_LISTE_CLIENT_H
 #define AWALE_LISTE_CLIENT_H
 
-
-
-
-#define TAILLE_TABLE_MAX 10
-
+#include <pthread.h>
 
 typedef struct Client
 {
@@ -18,10 +14,15 @@ typedef struct Client
     char* nomUtilisateur;
     int estDisponible;
 }Client;
+
 typedef struct TableClient
 {
     Client** table;
     int taille;
+    int current_size;
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+
 }TableClient;
 
 TableClient* initialiserTableClient(int taille);

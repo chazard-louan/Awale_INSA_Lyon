@@ -16,8 +16,7 @@ void afficherPlateau(Plateau* plateau, Joueur* joueur1, Joueur* joueur2)
     }
 
      printf("\n");
-    for(i=0;i<41;i++)//je ne sais pas quoi mettre a la place don je laisse \
-41
+    for(i=0;i<41;i++)//je ne sais pas quoi mettre a la place don je laisse 41
         printf("_");
 
     printf("\n| S%d |",joueur1->id);
@@ -180,7 +179,7 @@ void testFinPartie(){
 
 }
 
-int main()
+/*int main()
 {
     //jeuClassique();
     //testcollecte();
@@ -191,4 +190,4 @@ int main()
     
     
 
-}
+}*/

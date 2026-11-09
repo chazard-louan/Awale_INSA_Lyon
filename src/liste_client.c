@@ -4,6 +4,7 @@
  */
 
 #include "liste_client.h"
+#include "constants.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -14,10 +15,15 @@ TableClient* initialiserTableClient(int taille)
     TableClient* tableClient=malloc(sizeof(TableClient));
     tableClient->table=malloc(sizeof(Client*)*taille);
     tableClient->taille=taille;
+    tableClient->current_size=0;
     for(int i=0;i<taille;i++)
     {
         tableClient->table[i]=NULL;
     }
+    if (pthread_mutex_init(&(tableClient->mutex), NULL) != 0) {
+      // Gestion d'erreur
+    }
+    pthread_cond_init(&(tableClient->cond), NULL);
     return tableClient;
 
 }
@@ -29,8 +35,10 @@ int ajoutNouveauClient(TableClient* tableClient, int sockfd,char* nomUtilisateur
     nouveauClient->estDisponible=1;
     nouveauClient->sockfd=sockfd;
     nouveauClient->id=premierePlace;
-    nouveauClient->nomUtilisateur=nomUtilisateur;
+    nouveauClient->nomUtilisateur=malloc(sizeof(char)*(USERNAME_SIZE));
+    strcpy(nouveauClient->nomUtilisateur,nomUtilisateur);
     tableClient->table[premierePlace]=nouveauClient;
+    tableClient->current_size++;
     return 1;
 }
 
@@ -47,20 +55,14 @@ int premierePlaceLibre(TableClient *tableClient)
 
 int tablePleine(TableClient *tableClient)
 {
-    for(int i=0;i<tableClient->taille;i++){
-        if(tableClient->table[i]==NULL)
-        {
-            return 0;
-        }
-    }
-    return 1;
+    return tableClient->current_size == tableClient->taille;
 }
 
-int nomDejaPris(TableClient* tableClient,char*nom)
+int nomDejaPris(TableClient* tableClient, char*nom)
 {
     for (int i=0;i<tableClient->taille;i++)
     {
-        if(strcmp(nom, tableClient->table[i]->nomUtilisateur)==0)
+        if(tableClient->table[i] !=NULL && strcmp(nom, tableClient->table[i]->nomUtilisateur)==0)
         {
             return 1;
         }
@@ -85,8 +87,10 @@ int retirerClient(TableClient* tableClient,int id)
     {
         if(tableClient->table[id]!=NULL)
         {
+            free(tableClient->table[id]->nomUtilisateur);
             free(tableClient->table[id]);
             tableClient->table[id]=NULL;
+            tableClient->current_size--;
             return 1;
         }
         else 
@@ -111,6 +115,7 @@ void destructTableClient(TableClient *tableClient)
     }
     free(tableClient->table);
     free(tableClient);
+    pthread_mutex_destroy(&tableClient->mutex);
 }
 
 
