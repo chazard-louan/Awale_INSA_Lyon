@@ -21,9 +21,12 @@
 
 TableClient* tableClient;
 
+
+
 void *comm_client(void *args)
 {
   int fd = *(int *)args;
+  int my_id = 0;
   free(args);
 
   // give an id to the player needs to be thread safe
@@ -56,7 +59,7 @@ void *comm_client(void *args)
 
     if (!nomDejaPris(tableClient, username))
     {
-      ajoutNouveauClient(tableClient, fd, username);
+      my_id = ajoutNouveauClient(tableClient, fd, username);
       username_good = 1;
     }
     else
@@ -78,11 +81,129 @@ void *comm_client(void *args)
   printf("Client connected with username: %s\n", username);
 
   // TODO: Handle client communication here
+  char charresp;
+  ssize_t received = recv(fd, &charresp, sizeof(charresp), MSG_WAITALL);
 
-  // TODO : Wait for the client to ask something like knowing list of players
+  if (received != sizeof(charresp)){}
+  char msg[MAX_PLAYER_ONLINE*USERNAME_SIZE+1];
 
-  // TODO : respond with the list of player and ids so the clients can respond back for starting a match with another client
+  int cursor = 0;
+  if (charresp == 'l')
+  {
+    pthread_mutex_lock(&tableClient->mutex);
+    for (int i = 0; i < MAX_PLAYER_ONLINE; i++)
+    {
+      if (tableClient->table[i] != NULL && tableClient->table[i]->estDisponible)
+      {
+        strcpy(msg + cursor, (tableClient->table[i])->nomUtilisateur);
+        cursor = cursor + strlen(msg) + 1;
+      }
+    }
+    *(msg + cursor) = EOF;
+    pthread_cond_signal(&tableClient->cond);
+    pthread_mutex_unlock(&tableClient->mutex);
 
+    if (send(fd, &msg, sizeof(msg), 0) != sizeof(msg)) {
+      close(fd);
+      return NULL;
+    }
+  }
+
+  received = recv(fd, &charresp, sizeof(charresp), MSG_WAITALL);
+
+  if (received != sizeof(charresp)){}
+  int msg_Ids[MAX_PLAYER_ONLINE];
+  cursor = 0;
+  if (charresp == 'L')
+  {
+    pthread_mutex_lock(&tableClient->mutex);
+    for (int i = 0; i < MAX_PLAYER_ONLINE; i++)
+    {
+      if (tableClient->table[i] != NULL && tableClient->table[i]->estDisponible)
+      {
+        msg_Ids[cursor] = i;
+        cursor++;
+      }
+    }
+    pthread_cond_signal(&tableClient->cond);
+    pthread_mutex_unlock(&tableClient->mutex);
+    for (int i = 0; i < cursor; i++)
+    {
+      //printf("id : %d\n", msg_Ids[i]);
+    }
+
+
+    if (send(fd, &msg_Ids, sizeof(msg_Ids), 0) != sizeof(msg_Ids)) {
+      close(fd);
+      return NULL;
+    }
+
+    int player_id;
+    received = recv(fd, &player_id, sizeof(player_id), MSG_WAITALL);
+    if (received != sizeof(charresp)){}
+    printf("Player:%d -> challenge player:%d\n", my_id, player_id);
+
+    pthread_mutex_lock(&tableClient->mutex);
+    if (tableClient->table[player_id] == NULL)
+    {
+      // player disconected T_T
+    }
+    int player2_sockfd = tableClient->table[player_id]->sockfd;
+    pthread_mutex_unlock(&tableClient->mutex);
+
+    // ask chalenge
+    char msg_12 = 'c'; // send challenge
+    if(send(player2_sockfd, &msg_12, sizeof(msg_12), 0) != sizeof(msg_12))
+    {
+      //error
+    }
+    charresp = 'n';
+    received = recv(player2_sockfd, &charresp, sizeof(charresp), MSG_WAITALL);
+    if (received != sizeof(charresp)){}
+
+    if (charresp =='y')
+    {
+      send(fd, &charresp, sizeof(charresp), 0) != sizeof(charresp);
+      pthread_mutex_lock(&tableClient->mutex);
+      tableClient->table[my_id]->estDisponible = 0;
+      tableClient->table[player_id]->estDisponible = 0;
+      pthread_mutex_unlock(&tableClient->mutex);
+
+      //start game
+      int game_end = 0;
+      int coup;
+      while (!game_end)
+      {
+        received = recv(fd, &coup, sizeof(coup), MSG_WAITALL);
+        if (coup==0)
+        {
+          // fin de partie
+          game_end = 1;
+          continue;
+        }
+        send(player2_sockfd, &coup, sizeof(coup), 0) != sizeof(charresp);
+        received = recv(fd, &coup, sizeof(coup), MSG_WAITALL);
+        if (coup==0)
+        {
+          // fin de partie
+          game_end = 1;
+          continue;
+        }
+        send(player2_sockfd, &coup, sizeof(coup), 0) != sizeof(charresp);
+
+      }
+      // partie terminé
+      pthread_mutex_lock(&tableClient->mutex);
+      tableClient->table[my_id]->estDisponible = 1;
+      tableClient->table[player_id]->estDisponible = 1;
+      pthread_mutex_unlock(&tableClient->mutex);
+    }
+    if (charresp =='n')
+    {
+      // inform client challenge refused
+      send(fd, &charresp, sizeof(charresp), 0) != sizeof(charresp);
+    }
+  }
   close(fd);
   return NULL;
 }

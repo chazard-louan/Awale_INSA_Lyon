@@ -39,7 +39,7 @@ int ajoutNouveauClient(TableClient* tableClient, int sockfd,char* nomUtilisateur
     strcpy(nouveauClient->nomUtilisateur,nomUtilisateur);
     tableClient->table[premierePlace]=nouveauClient;
     tableClient->current_size++;
-    return 1;
+    return premierePlace;
 }
 
 int premierePlaceLibre(TableClient *tableClient)

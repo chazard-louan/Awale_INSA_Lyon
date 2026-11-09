@@ -3,7 +3,7 @@
 #include "joueur.h"
 #include "plateau.h"
 
-
+/*
 void afficherPlateau(Plateau* plateau, Joueur* joueur1, Joueur* joueur2)
 {
     int i;
@@ -178,7 +178,7 @@ void testFinPartie(){
     free(joueurs);
 
 }
-
+*/
 /*int main()
 {
     //jeuClassique();
