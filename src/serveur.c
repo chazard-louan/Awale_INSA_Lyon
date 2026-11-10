@@ -281,43 +281,42 @@ void *comm_client(void *args)
   if (register_client(fd, &my_id, username) != 0)
     return cleanup(fd,my_id);
 
-  // Step 2: Receive first command
-  if (recv_all(fd, &command, sizeof(command)) != 0)
-    return cleanup(fd,my_id);
 
-  // Step 3: Send available usernames
-  if (command == 'l')
+  while (1)
   {
-    if (send_available_players(fd) != 0)
+    // Step 1: Receive first command
+    if (recv_all(fd, &command, sizeof(command)) != 0)
       return cleanup(fd,my_id);
+
+    if (command == 'l')
+    {
+      if (send_available_players(fd) != 0)
+        return cleanup(fd,my_id);
+    }
+
+    if (command == 'L')
+    {
+      if (send_available_player_ids(fd) != 0)
+        return cleanup(fd,my_id);
+    }
+
+    if (command == 'x')
+    {
+
+      int player_id;
+
+      if (recv_all(fd, &player_id, sizeof(player_id)) != 0)
+        return cleanup(fd,my_id);
+
+      printf("Player %d wants to challenge player %d\n",
+             my_id, player_id);
+
+      // Step 6: Handle challenge
+      if (handle_challenge(fd, my_id, player_id) != 0)
+        return cleanup(fd,my_id);
+    }
   }
 
-  // Step 4: Receive next command
-  if (recv_all(fd, &command, sizeof(command)) != 0)
-    return cleanup(fd,my_id);
-
-  // Step 5: Handle player selection
-  if (command == 'L')
-  {
-    if (send_available_player_ids(fd) != 0)
-      return cleanup(fd,my_id);
-  }
-
-  if (command == 'x')
-  {
-
-    int player_id;
-
-    if (recv_all(fd, &player_id, sizeof(player_id)) != 0)
-      return cleanup(fd,my_id);
-
-    printf("Player %d wants to challenge player %d\n",
-           my_id, player_id);
-
-    // Step 6: Handle challenge
-    if (handle_challenge(fd, my_id, player_id) != 0)
-      return cleanup(fd,my_id);
-  }
 
   return cleanup(fd,my_id);
 }

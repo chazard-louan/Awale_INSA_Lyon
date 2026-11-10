@@ -409,14 +409,15 @@ int lancerChallenge(int sockfd)
 
 
 
-    if (send_all(sockfd, &player_id, sizeof(player_id)) != 0)
-        return -1;
-
     if (lireEntier(&player_id) != 0)
     {
       printf("Invalid player ID.\n");
+      if (send_all(sockfd, &player_id, sizeof(player_id)) != 0)
+        return -1;
       return 0;
     }
+    if (send_all(sockfd, &player_id, sizeof(player_id)) != 0)
+      return -1;
 
     char response;
 
