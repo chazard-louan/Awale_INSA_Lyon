@@ -23,6 +23,7 @@ TableClient* tableClient;
 
 
 
+Serveur* serveurChat;
 
 
 void *comm_client(void *args)
@@ -214,7 +215,6 @@ Serveur* initialiserServeur(int port)
 {
   Serveur* serveur;
  
-
   if (port < 1 || port > 65535) {
         fprintf(stderr, "Invalid port number\n");
         return NULL;
@@ -269,15 +269,30 @@ Serveur* initialiserServeur(int port)
 int main(int argc, char **argv)
 {
     Serveur* mainServeur;
-    if (argc != 2) {
+
+    if (argc != 3) {
         fprintf(stderr, "Usage: socket_server <port>\n");
         return EXIT_FAILURE;
     }
 
-    int port = atoi(argv[1]);
+    int mainPort = atoi(argv[1]);
+    int chatPort = atoi(argv[2]);
+    if ( (mainServeur=initialiserServeur(mainPort))==NULL)
+    {
+        return EXIT_FAILURE;
+    }
+        
+    printf("Main Server listening...\n");
 
-    mainServeur=initialiserServeur(port);
-    printf("Server listening...\n");
+    if ( (serveurChat=initialiserServeur(chatPort))==NULL)
+    {
+        close(mainServeur->socketfd);
+        free(mainServeur);
+        return EXIT_FAILURE;
+    }
+    printf("Chat Server listening...\n");
+
+
 
 
     tableClient = initialiserTableClient(MAX_PLAYER_ONLINE);
@@ -334,6 +349,8 @@ int main(int argc, char **argv)
     destructTableClient(tableClient);
 
     close(mainServeur->socketfd);
+    close(serveurChat->socketfd);
     free(mainServeur);
+    free(serveurChat);
     return EXIT_SUCCESS;
 }
