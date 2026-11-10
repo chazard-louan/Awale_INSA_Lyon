@@ -17,6 +17,13 @@
 
 #include "constants.h"
 
+typedef struct Serveur{
+    int socketfd;
+    int port;
+    struct sockaddr_in serv_addr;
+
+}Serveur;
+
 void *comm_client(void *args);
 
 int main(int argc, char** argv );

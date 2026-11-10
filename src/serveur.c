@@ -23,6 +23,8 @@ TableClient* tableClient;
 
 
 
+
+
 void *comm_client(void *args)
 {
   int fd = *(int *)args;
@@ -208,18 +210,14 @@ void *comm_client(void *args)
   return NULL;
 }
 
-int main(int argc, char **argv)
+Serveur* initialiserServeur(int port)
 {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: socket_server <port>\n");
-        return EXIT_FAILURE;
-    }
+  Serveur* serveur;
+ 
 
-    int port = atoi(argv[1]);
-
-    if (port < 1 || port > 65535) {
+  if (port < 1 || port > 65535) {
         fprintf(stderr, "Invalid port number\n");
-        return EXIT_FAILURE;
+        return NULL;
     }
 
     printf("Server starting on port %d...\n", port);
@@ -229,7 +227,7 @@ int main(int argc, char **argv)
 
     if (sockfd < 0) {
         perror("socket");
-        return EXIT_FAILURE;
+        return NULL;
     }
 
     // Allow address reuse
@@ -243,21 +241,42 @@ int main(int argc, char **argv)
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     serv_addr.sin_port = htons(port);
 
+    serveur=malloc(sizeof(Serveur));
+    serveur->port=port;
+    serveur->serv_addr=serv_addr;
+    serveur->socketfd=sockfd;
+
     // Bind socket
-    if (bind(sockfd, (struct sockaddr *)&serv_addr,
-             sizeof(serv_addr)) < 0) {
+    if (bind(serveur->socketfd, (struct sockaddr *) &(serveur->serv_addr),
+             sizeof(serveur->serv_addr)) < 0) {
         perror("bind");
         close(sockfd);
-        return EXIT_FAILURE;
+        free(serveur);
+        return NULL;
     }
 
     // Start listening
     if (listen(sockfd, SOMAXCONN) < 0) {
         perror("listen");
         close(sockfd);
+        free(serveur);
+        return NULL;
+    }
+    return serveur;
+
+}
+
+int main(int argc, char **argv)
+{
+    Serveur* mainServeur;
+    if (argc != 2) {
+        fprintf(stderr, "Usage: socket_server <port>\n");
         return EXIT_FAILURE;
     }
 
+    int port = atoi(argv[1]);
+
+    mainServeur=initialiserServeur(port);
     printf("Server listening...\n");
 
 
@@ -268,7 +287,7 @@ int main(int argc, char **argv)
         socklen_t clilen = sizeof(cli_addr);
 
         // Wait for a client
-        int scomm = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
+        int scomm = accept(mainServeur->socketfd, (struct sockaddr *)&cli_addr, &clilen);
 
         if (scomm < 0) {
             if (errno == EINTR)
@@ -314,6 +333,7 @@ int main(int argc, char **argv)
     }
     destructTableClient(tableClient);
 
-    close(sockfd);
+    close(mainServeur->socketfd);
+    free(mainServeur);
     return EXIT_SUCCESS;
 }
