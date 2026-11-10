@@ -136,6 +136,14 @@ int authentification(int sockfd)
 /*
  * Display available players
  */
+int errorAfficherJoueurs(char ** tableN_noms)
+{
+  for (int i = 0; i < MAX_PLAYER_ONLINE; i++)
+    free(tableN_noms[i]);
+
+  return -1;
+}
+
 int afficherJoueurs(int sockfd)
 {
     char command = 'l';
@@ -168,12 +176,12 @@ int afficherJoueurs(int sockfd)
         size_t len = strlen(response + cursor);
 
         if (len == remaining || len >= USERNAME_SIZE)
-            goto error;
+            return errorAfficherJoueurs(tableN_noms);
 
         tableN_noms[size_list] = malloc(len + 1);
 
         if (tableN_noms[size_list] == NULL)
-            goto error;
+            return errorAfficherJoueurs(tableN_noms);
 
         memcpy(tableN_noms[size_list], response + cursor, len + 1);
 
@@ -184,10 +192,10 @@ int afficherJoueurs(int sockfd)
     command = 'L';
 
     if (send_all(sockfd, &command, sizeof(command)) != 0)
-        goto error;
+        return errorAfficherJoueurs(tableN_noms);
 
     if (recv_all(sockfd, tableIDs, sizeof(tableIDs)) != 0)
-        goto error;
+        return errorAfficherJoueurs(tableN_noms);
 
     printf("\n%d Players connected\n", size_list);
     printf("Players_name : id\n");
@@ -199,13 +207,6 @@ int afficherJoueurs(int sockfd)
         free(tableN_noms[i]);
 
     return 0;
-
-error:
-
-    for (int i = 0; i < MAX_PLAYER_ONLINE; i++)
-        free(tableN_noms[i]);
-
-    return -1;
 }
 
 
