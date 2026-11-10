@@ -16,6 +16,7 @@ TableClient* initialiserTableClient(int taille)
     tableClient->table=malloc(sizeof(Client*)*taille);
     tableClient->taille=taille;
     tableClient->current_size=0;
+    tableClient->connected_size=0;
     for(int i=0;i<taille;i++)
     {
         tableClient->table[i]=NULL;
@@ -33,12 +34,14 @@ int ajoutNouveauClient(TableClient* tableClient, int sockfd,char* nomUtilisateur
     Client* nouveauClient=malloc(sizeof(Client));
     int premierePlace=premierePlaceLibre(tableClient);
     nouveauClient->estDisponible=1;
+    nouveauClient->connected=1;
     nouveauClient->sockfd=sockfd;
     nouveauClient->id=premierePlace;
     nouveauClient->nomUtilisateur=malloc(sizeof(char)*(USERNAME_SIZE));
     strcpy(nouveauClient->nomUtilisateur,nomUtilisateur);
     tableClient->table[premierePlace]=nouveauClient;
     tableClient->current_size++;
+    tableClient->connected_size++;
     return premierePlace;
 }
 
@@ -56,6 +59,35 @@ int premierePlaceLibre(TableClient *tableClient)
 int tablePleine(TableClient *tableClient)
 {
     return tableClient->current_size == tableClient->taille;
+}
+
+int cannotTryConnect(TableClient *tableClient)
+{
+  return tableClient->connected_size == tableClient->taille;
+}
+
+int userExist(TableClient* tableClient, char*nom)
+{
+  for (int i=0;i<tableClient->taille;i++)
+  {
+    if(tableClient->table[i] !=NULL && strcmp(nom, tableClient->table[i]->nomUtilisateur)==0)
+    {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+int getExistingUserId(TableClient* tableClient, char*nom)
+{
+  for (int i=0;i<tableClient->taille;i++)
+  {
+    if(tableClient->table[i] !=NULL && !tableClient->table[i]->connected && strcmp(nom, tableClient->table[i]->nomUtilisateur)==0)
+    {
+      return i;
+    }
+  }
+  return -1;
 }
 
 int nomDejaPris(TableClient* tableClient, char*nom)
@@ -81,6 +113,42 @@ Client* rechercherClientParID(TableClient* tableClient,int id)
         return NULL;
     } 
 }
+
+int connectClient(TableClient* tableClient, int id, int sockfd)
+{
+  if(id<tableClient->taille)
+  {
+    if(tableClient->table[id]!=NULL)
+    {
+      tableClient->connected_size++;
+      tableClient->table[id]->connected = 1;
+      tableClient->table[id]->estDisponible = 1;
+      tableClient->table[id]->sockfd = sockfd;
+      return 1;
+    }
+    return -1;
+  }
+  return -2;
+}
+
+
+int disconnectClient(TableClient* tableClient,int id)
+{
+  if(id<tableClient->taille)
+  {
+    if(tableClient->table[id]!=NULL)
+    {
+      tableClient->connected_size--;
+      tableClient->table[id]->connected = 0;
+      tableClient->table[id]->estDisponible = 0;
+      tableClient->table[id]->sockfd = -1;
+      return 1;
+    }
+    return -1;
+  }
+  return -2;
+}
+
 int retirerClient(TableClient* tableClient,int id)
 {
     if(id<tableClient->taille)
@@ -91,17 +159,12 @@ int retirerClient(TableClient* tableClient,int id)
             free(tableClient->table[id]);
             tableClient->table[id]=NULL;
             tableClient->current_size--;
+            tableClient->connected_size--;
             return 1;
         }
-        else 
-        {
-            return -1;
-        }
+      return -1;
     }
-    else
-    {
-        return -2;
-    }
+  return -2;
 }
 
 void destructTableClient(TableClient *tableClient)
@@ -113,9 +176,10 @@ void destructTableClient(TableClient *tableClient)
             free(tableClient->table[i]);
         }
     }
+    pthread_mutex_destroy(&tableClient->mutex);
     free(tableClient->table);
     free(tableClient);
-    pthread_mutex_destroy(&tableClient->mutex);
+
 }
 
 
