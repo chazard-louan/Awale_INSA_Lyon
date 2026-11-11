@@ -8,6 +8,7 @@
  */
 
 #include "serveur.h"
+#include "reseau.h"
 #include "liste_client.h"
 
 #include <stdio.h>
@@ -22,6 +23,249 @@
 TableClient* tableClient;
 
 
+void * cleanup(int fd, int my_id)
+{
+  printf("Client disconnected (ID: %d)\n", my_id);
+  disconnectClient(tableClient, my_id);
+  close(fd);
+  return NULL;
+}
+
+int register_client(int fd, int *my_id, char *username)
+{
+  char response;
+
+  while (1)
+  {
+    memset(username, 0, USERNAME_SIZE);
+
+    if (recv_all(fd, username, USERNAME_SIZE) != 0)
+      return -1;
+
+    // Check username termination
+    if (username[USERNAME_SIZE - 1] != '\0')
+    {
+      response = 0;
+
+      if (send_all(fd, &response, sizeof(response)) != 0)
+        return -1;
+
+      continue;
+    }
+
+    pthread_mutex_lock(&tableClient->mutex);
+
+    while (cannotTryConnect(tableClient))
+    {
+      pthread_cond_wait(&tableClient->cond, &tableClient->mutex);
+    }
+
+    int id = getExistingUserId(tableClient, username);
+
+    if (id == -1 && !nomDejaPris(tableClient, username))
+    {
+      *my_id = ajoutNouveauClient(tableClient, fd, username);
+
+      pthread_mutex_unlock(&tableClient->mutex);
+
+      response = 1;
+
+      if (send_all(fd, &response, sizeof(response)) != 0)
+        return -1;
+
+      printf("Client added and connected: %s (ID: %d)\n", username, *my_id);
+
+      return 0;
+    }
+
+    if (tableClient->table[id] != NULL && !tableClient->table[id]->connected)
+    {
+      connectClient(tableClient, id, fd);
+      pthread_mutex_unlock(&tableClient->mutex);
+
+      response = 1;
+
+      if (send_all(fd, &response, sizeof(response)) != 0)
+        return -1;
+
+      printf("Client connected: %s (ID: %d)\n", username, *my_id);
+
+      return 0;
+    }
+    response = 1;
+
+    if (send_all(fd, &response, sizeof(response)) != 0)
+      return -1;
+    return 0;
+  }
+}
+int send_available_players(int fd)
+{
+  char msg[MAX_PLAYER_ONLINE * USERNAME_SIZE + 1] = {0};
+  int cursor = 0;
+
+  pthread_mutex_lock(&tableClient->mutex);
+
+  for (int i = 0; i < MAX_PLAYER_ONLINE; i++)
+  {
+    if (tableClient->table[i] != NULL &&
+        tableClient->table[i]->estDisponible)
+    {
+      const char *username =
+          tableClient->table[i]->nomUtilisateur;
+
+      size_t len = strlen(username) + 1;
+
+      strcpy(msg + cursor, username);
+      cursor += len;
+    }
+  }
+
+  msg[cursor] = (char)EOF;
+
+  pthread_mutex_unlock(&tableClient->mutex);
+
+  return send_all(fd, msg, sizeof(msg));
+}
+
+int send_available_player_ids(int fd)
+{
+  int msg_Ids[MAX_PLAYER_ONLINE];
+
+  for (int i = 0; i < MAX_PLAYER_ONLINE; i++)
+    msg_Ids[i] = -1;
+
+  int cursor = 0;
+
+  pthread_mutex_lock(&tableClient->mutex);
+
+  for (int i = 0; i < MAX_PLAYER_ONLINE; i++)
+  {
+    if (tableClient->table[i] != NULL &&
+        tableClient->table[i]->estDisponible)
+    {
+      msg_Ids[cursor++] = i;
+    }
+  }
+
+  pthread_mutex_unlock(&tableClient->mutex);
+
+  return send_all(fd, msg_Ids, sizeof(msg_Ids));
+}
+
+int get_player_socket(int player_id)
+{
+  if (player_id < 0 || player_id >= MAX_PLAYER_ONLINE)
+    return -1;
+
+  pthread_mutex_lock(&tableClient->mutex);
+
+  if (tableClient->table[player_id] == NULL ||
+      !tableClient->table[player_id]->estDisponible)
+  {
+    pthread_mutex_unlock(&tableClient->mutex);
+    return -1;
+  }
+
+  int player_fd = tableClient->table[player_id]->sockfd;
+
+  pthread_mutex_unlock(&tableClient->mutex);
+
+  return player_fd;
+}
+
+void handle_game(int fd1, int fd2)
+{
+  int coup;
+
+  while (1)
+  {
+    // Receive move from player 1
+    if (recv_all(fd1, &coup, sizeof(coup)) != 0)
+      break;
+
+    if (coup == 0)
+      break;
+
+    // Forward move to player 2
+    if (send_all(fd2, &coup, sizeof(coup)) != 0)
+      break;
+
+    // Receive next move from player 1
+    if (recv_all(fd1, &coup, sizeof(coup)) != 0)
+      break;
+
+    if (coup == 0)
+      break;
+
+    // Forward move to player 2
+    if (send_all(fd2, &coup, sizeof(coup)) != 0)
+      break;
+  }
+}
+
+void set_players_available(int id1, int id2, int available)
+{
+  pthread_mutex_lock(&tableClient->mutex);
+
+  if (tableClient->table[id1] != NULL)
+    tableClient->table[id1]->estDisponible = available;
+
+  if (tableClient->table[id2] != NULL)
+    tableClient->table[id2]->estDisponible = available;
+
+  pthread_cond_broadcast(&tableClient->cond);
+
+  pthread_mutex_unlock(&tableClient->mutex);
+}
+
+
+int handle_challenge(int fd, int my_id, int player_id)
+{
+  int player2_sockfd = get_player_socket(player_id);
+
+  if (player2_sockfd < 0)
+  {
+    char refusal = 'n';
+    return send_all(fd, &refusal, sizeof(refusal));
+  }
+
+  // Send challenge
+  char challenge = 'c';
+
+  if (send_all(player2_sockfd, &challenge, sizeof(challenge)) != 0)
+    return -1;
+
+  // Receive response
+  char response;
+
+  if (recv_all(player2_sockfd, &response, sizeof(response)) != 0)
+    return -1;
+
+  if (response == 'n')
+  {
+    return send_all(fd, &response, sizeof(response));
+  }
+
+  if (response != 'y')
+    return -1;
+
+  // Notify requesting player
+  if (send_all(fd, &response, sizeof(response)) != 0)
+    return -1;
+
+  // Both players are now unavailable
+  set_players_available(my_id, player_id, 0);
+
+  // Start game
+  handle_game(fd, player2_sockfd);
+
+  // Game finished
+  set_players_available(my_id, player_id, 1);
+
+  return 0;
+}
+
 
 Serveur* serveurChat;
 
@@ -29,186 +273,55 @@ Serveur* serveurChat;
 void *comm_client(void *args)
 {
   int fd = *(int *)args;
-  int my_id = 0;
   free(args);
 
-  // give an id to the player needs to be thread safe
-
-  printf("We are in a thread.\n");
-
-  char buffer[BUFFER_SIZE] = {0};
+  int my_id = 0;
 
   char username[USERNAME_SIZE] = {0};
-  int username_good = 0;
-  while (!username_good)
+  char command;
+
+  // Step 1: Register client
+  if (register_client(fd, &my_id, username) != 0)
+    return cleanup(fd,my_id);
+
+
+  while (1)
   {
-    ssize_t received = recv(fd, username, sizeof(username), MSG_WAITALL);
+    // Step 1: Receive first command
+    if (recv_all(fd, &command, sizeof(command)) != 0)
+      return cleanup(fd,my_id);
 
-    if (received != sizeof(username)) {
-      char response = 0;
-      send(fd, &response, sizeof(response), 0);
-    }
-
-    if (username[USERNAME_SIZE - 1] != '\0') {
-      char response = 0;
-      send(fd, &response, sizeof(response), 0);
-    }
-
-    // Check whether username already exists
-    //thread safe
-    pthread_mutex_lock(&tableClient->mutex);
-    while (tablePleine(tableClient)) {pthread_cond_wait(&tableClient->cond, &tableClient->mutex);}
-
-
-    if (!nomDejaPris(tableClient, username))
+    if (command == 'l')
     {
-      my_id = ajoutNouveauClient(tableClient, fd, username);
-      username_good = 1;
+      if (send_available_players(fd) != 0)
+        return cleanup(fd,my_id);
     }
-    else
+
+    if (command == 'L')
     {
-      char response = 0;
-      send(fd, &response, sizeof(response), 0);
+      if (send_available_player_ids(fd) != 0)
+        return cleanup(fd,my_id);
     }
-    pthread_cond_signal(&tableClient->cond);
-    pthread_mutex_unlock(&tableClient->mutex);
-  }
 
-  char response = 1;
-
-  if (send(fd, &response, sizeof(response), 0) != sizeof(response)) {
-    close(fd);
-    return NULL;
-  }
-
-  printf("Client connected with username: %s\n", username);
-
-  // TODO: Handle client communication here
-  char charresp;
-  ssize_t received = recv(fd, &charresp, sizeof(charresp), MSG_WAITALL);
-
-  if (received != sizeof(charresp)){}
-  char msg[MAX_PLAYER_ONLINE*USERNAME_SIZE+1];
-
-  int cursor = 0;
-  if (charresp == 'l')
-  {
-    pthread_mutex_lock(&tableClient->mutex);
-    for (int i = 0; i < MAX_PLAYER_ONLINE; i++)
+    if (command == 'x')
     {
-      if (tableClient->table[i] != NULL && tableClient->table[i]->estDisponible)
-      {
-        strcpy(msg + cursor, (tableClient->table[i])->nomUtilisateur);
-        cursor = cursor + strlen(msg) + 1;
-      }
-    }
-    *(msg + cursor) = EOF;
-    pthread_cond_signal(&tableClient->cond);
-    pthread_mutex_unlock(&tableClient->mutex);
 
-    if (send(fd, &msg, sizeof(msg), 0) != sizeof(msg)) {
-      close(fd);
-      return NULL;
+      int player_id;
+
+      if (recv_all(fd, &player_id, sizeof(player_id)) != 0)
+        return cleanup(fd,my_id);
+
+      printf("Player %d wants to challenge player %d\n",
+             my_id, player_id);
+
+      // Step 6: Handle challenge
+      if (handle_challenge(fd, my_id, player_id) != 0)
+        return cleanup(fd,my_id);
     }
   }
 
-  received = recv(fd, &charresp, sizeof(charresp), MSG_WAITALL);
 
-  if (received != sizeof(charresp)){}
-  int msg_Ids[MAX_PLAYER_ONLINE];
-  cursor = 0;
-  if (charresp == 'L')
-  {
-    pthread_mutex_lock(&tableClient->mutex);
-    for (int i = 0; i < MAX_PLAYER_ONLINE; i++)
-    {
-      if (tableClient->table[i] != NULL && tableClient->table[i]->estDisponible)
-      {
-        msg_Ids[cursor] = i;
-        cursor++;
-      }
-    }
-    pthread_cond_signal(&tableClient->cond);
-    pthread_mutex_unlock(&tableClient->mutex);
-    for (int i = 0; i < cursor; i++)
-    {
-      //printf("id : %d\n", msg_Ids[i]);
-    }
-
-
-    if (send(fd, &msg_Ids, sizeof(msg_Ids), 0) != sizeof(msg_Ids)) {
-      close(fd);
-      return NULL;
-    }
-
-    int player_id;
-    received = recv(fd, &player_id, sizeof(player_id), MSG_WAITALL);
-    if (received != sizeof(charresp)){}
-    printf("Player:%d -> challenge player:%d\n", my_id, player_id);
-
-    pthread_mutex_lock(&tableClient->mutex);
-    if (tableClient->table[player_id] == NULL)
-    {
-      // player disconected T_T
-    }
-    int player2_sockfd = tableClient->table[player_id]->sockfd;
-    pthread_mutex_unlock(&tableClient->mutex);
-
-    // ask chalenge
-    char msg_12 = 'c'; // send challenge
-    if(send(player2_sockfd, &msg_12, sizeof(msg_12), 0) != sizeof(msg_12))
-    {
-      //error
-    }
-    charresp = 'n';
-    received = recv(player2_sockfd, &charresp, sizeof(charresp), MSG_WAITALL);
-    if (received != sizeof(charresp)){}
-
-    if (charresp =='y')
-    {
-      send(fd, &charresp, sizeof(charresp), 0) != sizeof(charresp);
-      pthread_mutex_lock(&tableClient->mutex);
-      tableClient->table[my_id]->estDisponible = 0;
-      tableClient->table[player_id]->estDisponible = 0;
-      pthread_mutex_unlock(&tableClient->mutex);
-
-      //start game
-      int game_end = 0;
-      int coup;
-      while (!game_end)
-      {
-        received = recv(fd, &coup, sizeof(coup), MSG_WAITALL);
-        if (coup==0)
-        {
-          // fin de partie
-          game_end = 1;
-          continue;
-        }
-        send(player2_sockfd, &coup, sizeof(coup), 0) != sizeof(charresp);
-        received = recv(fd, &coup, sizeof(coup), MSG_WAITALL);
-        if (coup==0)
-        {
-          // fin de partie
-          game_end = 1;
-          continue;
-        }
-        send(player2_sockfd, &coup, sizeof(coup), 0) != sizeof(charresp);
-
-      }
-      // partie terminé
-      pthread_mutex_lock(&tableClient->mutex);
-      tableClient->table[my_id]->estDisponible = 1;
-      tableClient->table[player_id]->estDisponible = 1;
-      pthread_mutex_unlock(&tableClient->mutex);
-    }
-    if (charresp =='n')
-    {
-      // inform client challenge refused
-      send(fd, &charresp, sizeof(charresp), 0) != sizeof(charresp);
-    }
-  }
-  close(fd);
-  return NULL;
+  return cleanup(fd,my_id);
 }
 
 Serveur* initialiserServeur(int port)

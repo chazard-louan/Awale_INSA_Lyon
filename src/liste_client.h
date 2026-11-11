@@ -13,6 +13,7 @@ typedef struct Client
     int sockfd;
     char* nomUtilisateur;
     int estDisponible;
+    int connected;
 }Client;
 
 typedef struct TableClient
@@ -20,17 +21,22 @@ typedef struct TableClient
     Client** table;
     int taille;
     int current_size;
+    int connected_size;
     pthread_mutex_t mutex;
     pthread_cond_t cond;
 
 }TableClient;
 
 TableClient* initialiserTableClient(int taille);
-int ajoutNouveauClient(TableClient* tableClient,int sockfd, char* nomUtilisateur);//ajoute un nouveau client dans la table des clients. LA TABLE DOIT AVOIR DES PLACE DE LIBRE
+int ajoutNouveauClient(TableClient* tableClient, int sockfd, char* nomUtilisateur);//ajoute un nouveau client dans la table des clients. LA TABLE DOIT AVOIR DES PLACE DE LIBRE
 int premierePlaceLibre(TableClient* tableClient);
 int tablePleine(TableClient* tableClient);//dit si la table est pleine
+int cannotTryConnect(TableClient *tableClient);
 int nomDejaPris(TableClient* tableClient,char* nom);
 Client* rechercherClientParID(TableClient* tableClient,int id);
+int getExistingUserId(TableClient* tableClient, char*nom);
+int connectClient(TableClient* tableClient, int id, int sockfd);
+int disconnectClient(TableClient* tableClient, int id);
 int retirerClient(TableClient* tableClient, int id);
 void destructTableClient(TableClient* tableClient);
 

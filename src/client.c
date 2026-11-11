@@ -1,9 +1,5 @@
-/*
- * Client pour les sockets
- * Usage: socket_client ip_server port
- */
-
 #include "client.h"
+#include "reseau.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,87 +11,472 @@
 #include "joueur.h"
 #include "plateau.h"
 
+
 void afficherPlateau(Plateau* plateau, Joueur* joueur1, Joueur* joueur2)
 {
     int i;
+
     printf("\t\t Joueur 1\n");
     printf("        ");
-    for(i=6; i>0;i--)
-    {
-        printf("%d    ",i);
 
-    }
+    for (i = 6; i > 0; i--)
+        printf("%d    ", i);
 
-     printf("\n");
-    for(i=0;i<41;i++)//je ne sais pas quoi mettre a la place don je laisse 41
+    printf("\n");
+
+    for (i = 0; i < 41; i++)
         printf("_");
 
-    printf("\n| S%d |",joueur1->id);
-    for(i=6;i>=1;i--)
-    {
-        printf(" %2d |",recupererChamp(plateau,joueur1,i));
-    }
+    printf("\n| S%d |", joueur1->id);
+
+    for (i = 6; i >= 1; i--)
+        printf(" %2d |", recupererChamp(plateau, joueur1, i));
+
     printf("    |\n");
 
     printf("| %2d |", joueur1->score);
 
-    for (i=0; i<29;i++)
-    {
+    for (i = 0; i < 29; i++)
         printf("-");
-    }
-    printf("| %2d |\n",joueur2->score);
+
+    printf("| %2d |\n", joueur2->score);
     printf("|    |");
-    for(i=1;i<=6;i++)
-    {
-        printf(" %2d |",recupererChamp(plateau,joueur2,i));
-    }
-    printf(" S%d |\n",joueur2->id);
-    for(i=0;i<41;i++)
-    {
+
+    for (i = 1; i <= 6; i++)
+        printf(" %2d |", recupererChamp(plateau, joueur2, i));
+
+    printf(" S%d |\n", joueur2->id);
+
+    for (i = 0; i < 41; i++)
         printf("-");
-    }
+
     printf("\n        ");
-    for(i=1;i<=6;i++)
-    {
-        printf("%d    ",i);
-    }
+
+    for (i = 1; i <= 6; i++)
+        printf("%d    ", i);
+
     printf("\n\t\t Joueur 2\n");
 }
+
+
+/*
+ * Read an integer from stdin.
+ * Returns 0 on success, -1 on invalid input or EOF.
+ */
+int lireEntier(int *value)
+{
+    char buffer[64];
+
+    if (fgets(buffer, sizeof(buffer), stdin) == NULL)
+        return -1;
+
+    char *end;
+    long result = strtol(buffer, &end, 10);
+
+    while (*end == ' ' || *end == '\t')
+        end++;
+
+    if (end == buffer || (*end != '\n' && *end != '\0'))
+        return -1;
+
+    *value = (int)result;
+
+    return 0;
+}
+
+
+/*
+ * Username authentication
+ */
+int authentification(int sockfd)
+{
+    while (1)
+    {
+        char username[USERNAME_SIZE] = {0};
+
+        printf("Enter username (maximum %d characters): ",
+               USERNAME_SIZE - 1);
+
+        if (fgets(username, sizeof(username), stdin) == NULL)
+            return -1;
+
+        username[strcspn(username, "\n")] = '\0';
+
+        if (strlen(username) == 0)
+        {
+            printf("Username cannot be empty.\n");
+            continue;
+        }
+
+        if (send_all(sockfd, username, sizeof(username)) != 0)
+        {
+            perror("send username");
+            return -1;
+        }
+
+        char response;
+
+        if (recv_all(sockfd, &response, sizeof(response)) != 0)
+        {
+            printf("Server disconnected.\n");
+            return -1;
+        }
+
+        if (response == 1)
+        {
+            printf("Username accepted! Welcome %s.\n", username);
+            return 0;
+        }
+
+        printf("Username already in use. Try another one.\n");
+    }
+}
+
+
+/*
+ * Display available players
+ */
+int errorAfficherJoueurs(char ** tableN_noms)
+{
+  for (int i = 0; i < MAX_PLAYER_ONLINE; i++)
+    free(tableN_noms[i]);
+
+  return -1;
+}
+
+int afficherJoueurs(int sockfd)
+{
+    char command = 'l';
+
+    if (send_all(sockfd, &command, sizeof(command)) != 0)
+        return -1;
+
+    char response[MAX_PLAYER_ONLINE * USERNAME_SIZE + 1] = {0};
+
+    if (recv_all(sockfd, response, sizeof(response)) != 0)
+        return -1;
+
+    char *tableN_noms[MAX_PLAYER_ONLINE] = {0};
+    int tableIDs[MAX_PLAYER_ONLINE];
+
+    int cursor = 0;
+    int size_list = 0;
+
+    /*
+     * Parse the username array.
+     * Names are separated by '\0'.
+     * EOF marks the end of the list.
+     */
+    for (int i = 0; i < MAX_PLAYER_ONLINE; i++)
+    {
+        if ((unsigned char)response[cursor] == (unsigned char)EOF)
+            break;
+
+        size_t remaining = sizeof(response) - cursor;
+        size_t len = strlen(response + cursor);
+
+        if (len == remaining || len >= USERNAME_SIZE)
+            return errorAfficherJoueurs(tableN_noms);
+
+        tableN_noms[size_list] = malloc(len + 1);
+
+        if (tableN_noms[size_list] == NULL)
+            return errorAfficherJoueurs(tableN_noms);
+
+        memcpy(tableN_noms[size_list], response + cursor, len + 1);
+
+        cursor += len + 1;
+        size_list++;
+    }
+
+    command = 'L';
+
+    if (send_all(sockfd, &command, sizeof(command)) != 0)
+        return errorAfficherJoueurs(tableN_noms);
+
+    if (recv_all(sockfd, tableIDs, sizeof(tableIDs)) != 0)
+        return errorAfficherJoueurs(tableN_noms);
+
+    printf("\n%d Players connected\n", size_list);
+    printf("Players_name : id\n");
+
+    for (int i = 0; i < size_list; i++)
+        printf("%s : %d\n", tableN_noms[i], tableIDs[i]);
+
+    for (int i = 0; i < size_list; i++)
+        free(tableN_noms[i]);
+
+    return 0;
+}
+
+
+/*
+ * Game logic
+ *
+ * player_id = 0 : Local player is player 1
+ * player_id = 1 : Local player is player 2
+ */
+int jouerPartie(int sockfd, int player_id)
+{
+    Plateau *plateau = constructPlateau();
+
+    if (plateau == NULL)
+        return -1;
+
+    Joueur **joueurs = malloc(sizeof(Joueur *) * 2);
+
+    if (joueurs == NULL)
+    {
+        // Adapt this if your plateau API has a destructor.
+        return -1;
+    }
+
+    joueurs[0] = constructJoueur(1);
+    joueurs[1] = constructJoueur(2);
+
+    if (joueurs[0] == NULL || joueurs[1] == NULL)
+    {
+        free(joueurs);
+        return -1;
+    }
+
+    int fini = 0;
+    int joueurQuiJoue = 0;
+
+    while (!fini)
+    {
+        printf("\n");
+
+        afficherPlateau(plateau, joueurs[0], joueurs[1]);
+
+        printf("\n");
+
+        int coup;
+        int isValide = 0;
+
+        while (isValide != 1)
+        {
+            printf("Coup du joueur %d: ",
+                   joueurs[joueurQuiJoue]->id);
+
+            if (joueurQuiJoue == player_id)
+            {
+                if (lireEntier(&coup) != 0)
+                {
+                    printf("Invalid input.\n");
+                    continue;
+                }
+
+                isValide = coupValide(
+                    plateau,
+                    joueurs[joueurQuiJoue],
+                    coup
+                );
+
+                if (isValide == 1)
+                {
+                    if (send_all(sockfd, &coup, sizeof(coup)) != 0)
+                    {
+                        free(joueurs[0]);
+                        free(joueurs[1]);
+                        free(joueurs);
+                        return -1;
+                    }
+                }
+            }
+            else
+            {
+                if (recv_all(sockfd, &coup, sizeof(coup)) != 0)
+                {
+                    printf("Connection lost during game.\n");
+
+                    free(joueurs[0]);
+                    free(joueurs[1]);
+                    free(joueurs);
+
+                    return -1;
+                }
+
+                isValide = 1;
+            }
+
+            if (isValide == 0)
+                printf("Coup en dehors des limites.\n");
+
+            else if (isValide == -1)
+                printf("Champ vide.\n");
+
+            else if (isValide == -2)
+                printf("Affame l'adversaire.\n");
+        }
+
+        jouerUnCoup(plateau, joueurs[joueurQuiJoue], coup);
+
+        if (joueurs[joueurQuiJoue]->score >= 25)
+            fini = 1;
+
+        joueurQuiJoue = (joueurQuiJoue + 1) % 2;
+
+        if (!joueurPeutJouer(plateau, joueurs[joueurQuiJoue]))
+        {
+            afficherPlateau(plateau, joueurs[0], joueurs[1]);
+
+            finPartieFamine(plateau, joueurs[joueurQuiJoue]);
+
+            fini = 1;
+        }
+    }
+
+    free(joueurs[0]);
+    free(joueurs[1]);
+    free(joueurs);
+
+    return 0;
+}
+
+
+/*
+ * Accept or refuse an incoming challenge
+ */
+int recevoirChallenge(int sockfd)
+{
+    char response;
+
+    if (recv_all(sockfd, &response, sizeof(response)) != 0)
+        return -1;
+
+    if (response == '-')
+    {
+        printf("No challenge.\n");
+        return 0;
+    }
+
+    if (response != 'c')
+    {
+        printf("Unexpected server response.\n");
+        return -1;
+    }
+
+    char answer = 0;
+
+    printf("You have been challenged! Accept? [y/n]\n");
+
+    while (1)
+    {
+        char input[16];
+
+        if (fgets(input, sizeof(input), stdin) == NULL)
+            return -1;
+
+        if (input[0] == 'y' || input[0] == 'n')
+        {
+            answer = input[0];
+            break;
+        }
+
+        printf("[y/n] ?\n");
+    }
+
+    if (send_all(sockfd, &answer, sizeof(answer)) != 0)
+        return -1;
+
+    if (answer == 'y')
+    {
+        printf("Challenge accepted!\n");
+
+        // Player 2
+        return jouerPartie(sockfd, 1);
+    }
+
+    printf("Challenge refused.\n");
+
+    return 0;
+}
+
+
+/*
+ * Request a challenge
+ */
+int lancerChallenge(int sockfd)
+{
+    char command = 'x';
+
+    if (send_all(sockfd, &command, sizeof(command)) != 0)
+        return -1;
+
+    printf("Enter the player ID to challenge: ");
+
+    int player_id;
+
+
+
+    if (lireEntier(&player_id) != 0)
+    {
+      printf("Invalid player ID.\n");
+      if (send_all(sockfd, &player_id, sizeof(player_id)) != 0)
+        return -1;
+      return 0;
+    }
+    if (send_all(sockfd, &player_id, sizeof(player_id)) != 0)
+      return -1;
+
+    char response;
+
+    printf("Waiting for response...\n");
+
+    if (recv_all(sockfd, &response, sizeof(response)) != 0)
+        return -1;
+
+    if (response == 'y')
+    {
+        printf("Challenge accepted!\n");
+
+        // Player 1
+        return jouerPartie(sockfd, 0);
+    }
+
+    if (response == 'n')
+        printf("Player refused the challenge.\n");
+
+    return 0;
+}
+
 
 int main(int argc, char **argv)
 {
     int sockfd;
     char c;
 
-    if (argc != 3) {
+    if (argc != 3)
+    {
         fprintf(stderr, "Usage: socket_client server port\n");
         return EXIT_FAILURE;
     }
 
     printf("Client starting...\n");
 
-    // Initialize server address
     struct sockaddr_in serv_addr = {0};
 
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(atoi(argv[2]));
 
-    if (inet_pton(AF_INET, argv[1], &serv_addr.sin_addr) != 1) {
-        fprintf(stderr, "Invalid server IP address\n");
+    if (inet_pton(AF_INET, argv[1], &serv_addr.sin_addr) != 1)
+    {
+        fprintf(stderr, "Invalid server IP address.\n");
         return EXIT_FAILURE;
     }
 
-    // Create socket
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
-    if (sockfd < 0) {
+    if (sockfd < 0)
+    {
         perror("socket");
         return EXIT_FAILURE;
     }
 
-    // Connect to server
     if (connect(sockfd, (struct sockaddr *)&serv_addr,
-                sizeof(serv_addr)) < 0) {
+                sizeof(serv_addr)) < 0)
+    {
         perror("connect");
         close(sockfd);
         return EXIT_FAILURE;
@@ -103,298 +484,55 @@ int main(int argc, char **argv)
 
     printf("Connected to server!\n");
 
-    // Username authentication
-    int usernameValid = 0;
-
-    while (!usernameValid) {
-
-        char username[USERNAME_SIZE] = {0};
-
-        printf("Enter username (maximum 60 characters): ");
-
-        if (fgets(username, sizeof(username), stdin) == NULL) {
-            close(sockfd);
-            return EXIT_FAILURE;
-        }
-
-        // Remove newline
-        username[strcspn(username, "\n")] = '\0';
-
-        if (strlen(username) == 0) {
-            printf("Username cannot be empty.\n");
-            continue;
-        }
-
-        // Send fixed-size username
-        ssize_t sent = send(sockfd, username, sizeof(username), 0);
-
-        if (sent != sizeof(username)) {
-            perror("send");
-            close(sockfd);
-            return EXIT_FAILURE;
-        }
-
-        // Receive server response
-        char response;
-
-        ssize_t received = recv(sockfd, &response, sizeof(response), MSG_WAITALL);
-
-        if (received != sizeof(response)) {
-            printf("Server disconnected or invalid response.\n");
-            close(sockfd);
-            return EXIT_FAILURE;
-        }
-
-        if (response == 1) {
-            usernameValid = 1;
-            printf("Username accepted! Welcome %s.\n", username);
-        }
-        else {
-            printf("Username already in use. Try another one.\n");
-        }
+    if (authentification(sockfd) != 0)
+    {
+        close(sockfd);
+        return EXIT_FAILURE;
     }
 
-    // Main communication loop
-    printf("You can now communicate with the server.\n");
+    printf("\nYou can now communicate with the server.\n");
 
-
-
-    while (1) {
+    while (1)
+    {
+        printf("\n");
         printf("Press 'q' to disconnect.\n");
         printf("Press 'l' to list players.\n");
         printf("Press 'c' to check challenges.\n");
-        c = getchar();
-      if (c == 'c')
-      {
-        c = -1;
-        read(sockfd, &c, sizeof(c));
-        if (c==-1)
+        printf("Press 'x' to challenge a player.\n");
+
+        char input[16];
+
+        if (fgets(input, sizeof(input), stdin) == NULL)
+            break;
+
+        c = input[0];
+
+        if (c == 'q')
+            break;
+
+        if (c == 'l')
         {
-          //"No challenge"
+            if (afficherJoueurs(sockfd) != 0)
+            {
+                printf("Communication error.\n");
+                break;
+            }
         }
-        else
+        else if (c == 'x')
         {
-          int responded = 0;
-          printf("You have been Challenged do you accept [y/n] ?\n");
-          while (!responded)
-          {
-            c = getchar();
-            if (c=='y' || c=='n')
+            if (lancerChallenge(sockfd) != 0)
             {
-              responded = 1;
-              send(sockfd, &c, sizeof(c), MSG_WAITALL);
-              break;
+                printf("Communication error.\n");
+                break;
             }
-            printf("[y/n] ?\n");
-          }
-          // start the board as player 2
-          Plateau * plateau = constructPlateau();
-          Joueur **joueurs = malloc(sizeof(Joueur *) * 2);
-          joueurs[1]=constructJoueur(2);
-          joueurs[0]=constructJoueur(1);
-
-          // linsten input from serveur
-          int coup;
-          int isValide;
-          int fini=0;
-          int joueurQuiJoue=0;
-
-          while(!fini)
-          {
-            printf("\n");
-            afficherPlateau(plateau,joueurs[0],joueurs[1]);
-            printf("\n");
-
-            isValide=0;
-            while(isValide!=1)
-            {
-              printf("coup du joueur %d: \t",joueurs[joueurQuiJoue]->id);
-
-              if (joueurQuiJoue == 1)
-              {
-                scanf("%d",&coup);
-                isValide=coupValide(plateau,joueurs[joueurQuiJoue],coup);
-                send(sockfd, &coup, sizeof(coup), MSG_WAITALL);
-              }
-              if (joueurQuiJoue == 0)
-              {
-                ssize_t received = recv(sockfd, &coup, sizeof(coup), MSG_WAITALL);
-                isValide=1;
-              }
-
-              if(isValide==0)
-              {
-                printf("coup en dehors des limites\n");
-              }
-              else if(isValide==-1)
-              {
-                printf("champs vide\n");
-              }
-              else if(isValide==-2)
-              {
-                printf("affame l'adversaire\n");
-              }
-
-            }
-            jouerUnCoup(plateau, joueurs[joueurQuiJoue], coup);
-            if(joueurs[joueurQuiJoue]->score>=25){
-              fini=1;
-            }
-            joueurQuiJoue=(joueurQuiJoue+1)%2;
-            if(!joueurPeutJouer(plateau,joueurs[joueurQuiJoue]))
-            {
-              afficherPlateau(plateau,joueurs[0],joueurs[1]);
-              finPartieFamine(plateau, joueurs[joueurQuiJoue]);
-
-              fini=1;
-            }
-          }
         }
-
-      }
-        if (c == 'l') {
-          if (send(sockfd, &c, sizeof(c), 0) <= 0)
-          {
-            perror("send");
-            break;
-          }
-
-          // Receive server response
-          char response[MAX_PLAYER_ONLINE*USERNAME_SIZE+1];
-
-          ssize_t received = recv(sockfd, &response, sizeof(response), MSG_WAITALL);
-
-          char** tableN_noms = malloc(MAX_PLAYER_ONLINE*USERNAME_SIZE*sizeof(char*));
-          int cursor = 0;
-          int size_list = 0;
-          for (int i = 0; i < MAX_PLAYER_ONLINE; i++)
-          {
-            if (response[cursor] != EOF)
+        else if (c == 'c')
+        {
+            if (recevoirChallenge(sockfd) != 0)
             {
-              tableN_noms[i] = malloc(USERNAME_SIZE*sizeof(char));
-              strcpy(tableN_noms[i], (response + cursor));
-              cursor = cursor + strlen(response) + 1 ;
+                printf("Communication error.\n");
+                break;
             }
-            else
-            {
-              size_list = i;
-              break;
-            }
-          }
-          c = 'L';
-
-          if (send(sockfd, &c, sizeof(c), 0) <= 0)
-          {
-            perror("send");
-            break;
-          }
-          int tableIDs[MAX_PLAYER_ONLINE];
-
-          received = recv(sockfd, &tableIDs, sizeof(tableIDs), MSG_WAITALL);
-
-          // Prints player list : ids
-          printf("%d Players connected\n", size_list);
-          printf("Players_name : id\n");
-          for (int i = 0; i < size_list; i++)
-          {
-            printf("%s : %d\n", tableN_noms[i], tableIDs[i]);
-          }
-          printf("Enter the player id to challenge :\n");
-          int id_player;
-          scanf("%d", &id_player);
-
-          // send challenge id player
-          if (send(sockfd, &id_player, sizeof(id_player), 0) <= 0)
-          {
-            perror("send");
-            break;
-          }
-
-          // waiting for resonse challenge
-
-          char rep;
-          printf("Waiting for response\n");
-          received = recv(sockfd, &rep, sizeof(rep), MSG_WAITALL);
-
-          if (received != sizeof(rep)) {}
-
-          if (rep == 'y')
-          {
-            // start the board as player 1
-            Plateau * plateau = constructPlateau();
-            Joueur **joueurs = malloc(sizeof(Joueur *) * 2);
-            joueurs[1]=constructJoueur(2);
-            joueurs[0]=constructJoueur(1);
-
-            int coup;
-            int isValide;
-            int fini=0;
-            int joueurQuiJoue=0;
-
-            while(!fini)
-            {
-              printf("\n");
-              afficherPlateau(plateau,joueurs[0],joueurs[1]);
-              printf("\n");
-
-              isValide=0;
-              while(isValide!=1)
-              {
-                printf("coup du joueur %d: \t",joueurs[joueurQuiJoue]->id);
-
-                if (joueurQuiJoue == 0)
-                {
-                  scanf("%d",&coup);
-                  isValide=coupValide(plateau,joueurs[joueurQuiJoue],coup);
-                  send(sockfd, &coup, sizeof(coup), MSG_WAITALL);
-                }
-                if (joueurQuiJoue == 1)
-                {
-                  ssize_t received = recv(sockfd, &coup, sizeof(coup), MSG_WAITALL);
-                  isValide=1;
-                }
-
-                if(isValide==0)
-                {
-                  printf("coup en dehors des limites\n");
-                }
-                else if(isValide==-1)
-                {
-                  printf("champs vide\n");
-                }
-                else if(isValide==-2)
-                {
-                  printf("affame l'adversaire\n");
-                }
-
-              }
-              jouerUnCoup(plateau, joueurs[joueurQuiJoue], coup);
-              if(joueurs[joueurQuiJoue]->score>=25){
-                fini=1;
-              }
-              joueurQuiJoue=(joueurQuiJoue+1)%2;
-              if(!joueurPeutJouer(plateau,joueurs[joueurQuiJoue]))
-              {
-                afficherPlateau(plateau,joueurs[0],joueurs[1]);
-                finPartieFamine(plateau, joueurs[joueurQuiJoue]);
-
-                fini=1;
-              }
-            }
-          }
-          if (rep == 'n')
-          {
-            printf("Player refused the challenge.\n");
-          }
-        }
-
-        if (c == EOF || c == 'q') {
-            break;
-        }
-
-        if (send(sockfd, &c, sizeof(c), 0) <= 0) {
-            perror("send");
-            break;
         }
     }
 
