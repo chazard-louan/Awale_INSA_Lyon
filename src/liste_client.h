@@ -36,7 +36,7 @@ int cannotTryConnect(TableClient *tableClient);
 int nomDejaPris(TableClient* tableClient,char* nom);
 Client* rechercherClientParID(TableClient* tableClient,int id);
 int getExistingUserId(TableClient* tableClient, char*nom);
-int connectClient(TableClient* tableClient, int id, int sockfd);
+int connectClient(TableClient* tableClient, int id, int mainSockfd,int chatSockfd);
 int disconnectClient(TableClient* tableClient, int id);
 int retirerClient(TableClient* tableClient, int id);
 void destructTableClient(TableClient* tableClient);

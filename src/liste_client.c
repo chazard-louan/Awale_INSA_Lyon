@@ -36,6 +36,7 @@ Client* ajoutNouveauClient(TableClient* tableClient, int mainSockfd,int chatSock
     nouveauClient->estDisponible=1;
     nouveauClient->connected=1;
     nouveauClient->mainSockfd=mainSockfd;
+    nouveauClient->chatSockfd=chatSockfd;
     nouveauClient->id=premierePlace;
     nouveauClient->nomUtilisateur=malloc(sizeof(char)*(USERNAME_SIZE));
     strcpy(nouveauClient->nomUtilisateur,nomUtilisateur);
@@ -114,7 +115,7 @@ Client* rechercherClientParID(TableClient* tableClient,int id)
     } 
 }
 
-int connectClient(TableClient* tableClient, int id, int sockfd)
+int connectClient(TableClient* tableClient, int id, int mainSockfd,int chatSockfd)
 {
   if(id<tableClient->taille)
   {
@@ -123,8 +124,8 @@ int connectClient(TableClient* tableClient, int id, int sockfd)
       tableClient->connected_size++;
       tableClient->table[id]->connected = 1;
       tableClient->table[id]->estDisponible = 1;
-      tableClient->table[id]->mainSockfd = -1;
-      tableClient->table[id]->chatSockfd = -1;
+      tableClient->table[id]->mainSockfd = mainSockfd;
+      tableClient->table[id]->chatSockfd = chatSockfd;
       return 1;
     }
     return -1;

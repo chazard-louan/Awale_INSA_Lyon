@@ -49,9 +49,10 @@ int connectionToServer(Serveur* serveur){
 void *cleanup(Client* client)
 {
   printf("Client disconnected (ID: %d)\n", client->id);
-  disconnectClient(tableClient, client->id);
   close(client->mainSockfd);
   close(client->chatSockfd);
+  disconnectClient(tableClient, client->id);
+  
   return NULL;
 
 }
@@ -122,7 +123,8 @@ Client* register_client(int mainfd, int chatfd)
 
     if (tableClient->table[id] != NULL && !tableClient->table[id]->connected)
     {
-      connectClient(tableClient, id, mainfd);
+      myClient=tableClient->table[id];
+      connectClient(tableClient, id, mainfd,chatfd);
       pthread_mutex_unlock(&tableClient->mutex);
 
       response = 1;
@@ -315,7 +317,7 @@ int handle_challenge(int fd, int my_id, int player_id)
 void *comm_client(void *args)
 {
   int mainfd = ((int *)args)[0];
-  int chatfd = ((int *)args)[0];
+  int chatfd = ((int *)args)[1];
   free(args);
   
 
@@ -487,6 +489,7 @@ int main(int argc, char **argv)
           perror("connexion");
           continue;
         } 
+
 
         printf("Connection accepted!\n");
 
