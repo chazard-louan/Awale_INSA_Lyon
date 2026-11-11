@@ -28,10 +28,10 @@ int connectionToServer(Serveur* serveur){
   int clientfd;
   struct sockaddr_in cli_addr = {0};
   socklen_t clilen = sizeof(cli_addr);
-printf("NOUS SOMMES MERCREDI");
+
   // Wait for a client
   clientfd = accept(serveur->socketfd, (struct sockaddr *)&cli_addr, &clilen);
-  printf("Ca TOMBE BIEN CEST LE JOUR OU ON SORT LES POUBELLES");
+  
 
   if (clientfd < 0) {
       if (errno == EINTR)
@@ -301,7 +301,7 @@ void *comm_client(void *args)
   int mainfd = ((int *)args)[0];
   int chatfd = ((int *)args)[0];
   free(args);
-  printf("lAYTOOOOOON!!!");
+  
 
   int my_id = 0;
 

@@ -498,7 +498,6 @@ int main(int argc, char **argv)
       close(mainSockfd);
       return EXIT_FAILURE;
     }
-    printf("%d",portChat);
     
 
     if ((chatSockfd=connectionToServer(portChat,argv[1]))==0)
