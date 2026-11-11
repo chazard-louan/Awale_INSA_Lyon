@@ -218,14 +218,14 @@ void handle_game(int fd1, int fd2)
       break;
 
     // Receive next move from player 1
-    if (recv_all(fd1, &coup, sizeof(coup)) != 0)
+    if (recv_all(fd2, &coup, sizeof(coup)) != 0)
       break;
 
     if (coup == 0)
       break;
 
     // Forward move to player 2
-    if (send_all(fd2, &coup, sizeof(coup)) != 0)
+    if (send_all(fd1, &coup, sizeof(coup)) != 0)
       break;
   }
 }
