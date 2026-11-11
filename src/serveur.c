@@ -19,8 +19,9 @@
 #include <errno.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-
+#define LONGUEUR_MESSAGE 100
 TableClient* tableClient;
+
 
 
 
@@ -52,6 +53,21 @@ void *cleanup(Client* client)
   close(client->mainSockfd);
   close(client->chatSockfd);
   return NULL;
+
+}
+
+void chatTunnel(int sockfdSource,int sockfdDest)
+{
+    /* repete dans le socket tout ce qu'il entend */
+    char msg[LONGUEUR_MESSAGE];
+  while (1)
+  {
+    if((recv_all(sockfdSource,msg,sizeof(msg)))!=0)
+      break;
+
+    if((send_all(sockfdDest,msg,sizeof(msg)))!=0)
+      break;    
+  }
 
 }
 

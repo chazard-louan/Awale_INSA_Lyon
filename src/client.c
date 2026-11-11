@@ -11,6 +11,22 @@
 #include "joueur.h"
 #include "plateau.h"
 
+#define LONGUEUR_MESSAGE 100
+
+
+void listenChat(int chatSockfd)
+{
+  char message[LONGUEUR_MESSAGE];
+  while(1)
+  {
+    if ((recv_all(chatSockfd,message,sizeof(message)))!=0)
+    {
+      break;
+    }
+    printf("%s\n",message);
+    
+  }
+}
 
 void afficherPlateau(Plateau* plateau, Joueur* joueur1, Joueur* joueur2)
 {
