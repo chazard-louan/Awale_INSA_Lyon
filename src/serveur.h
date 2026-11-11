@@ -20,7 +20,6 @@
 typedef struct Serveur{
     int socketfd;
     int port;
-    struct sockaddr_in serv_addr;
 
 }Serveur;
 

@@ -23,32 +23,58 @@
 TableClient* tableClient;
 
 
-void * cleanup(int fd, int my_id)
-{
-  printf("Client disconnected (ID: %d)\n", my_id);
-  disconnectClient(tableClient, my_id);
-  close(fd);
-  return NULL;
+
+int connectionToServer(Serveur* serveur){
+  int clientfd;
+  struct sockaddr_in cli_addr = {0};
+  socklen_t clilen = sizeof(cli_addr);
+printf("NOUS SOMMES MERCREDI");
+  // Wait for a client
+  clientfd = accept(serveur->socketfd, (struct sockaddr *)&cli_addr, &clilen);
+  printf("Ca TOMBE BIEN CEST LE JOUR OU ON SORT LES POUBELLES");
+
+  if (clientfd < 0) {
+      if (errno == EINTR)
+          return 0;
+
+      perror("accept");
+      return 0;
+  }
+  
+  return clientfd;
+
 }
 
-int register_client(int fd, int *my_id, char *username)
+void *cleanup(Client* client)
+{
+  printf("Client disconnected (ID: %d)\n", client->id);
+  disconnectClient(tableClient, client->id);
+  close(client->mainSockfd);
+  close(client->chatSockfd);
+  return NULL;
+
+}
+
+Client* register_client(int mainfd, int chatfd)
 {
   char response;
+  char username[USERNAME_SIZE] = {0};
+  Client* myClient;
 
   while (1)
   {
     memset(username, 0, USERNAME_SIZE);
 
-    if (recv_all(fd, username, USERNAME_SIZE) != 0)
-      return -1;
+    if (recv_all(mainfd, username, USERNAME_SIZE) != 0)
+      return NULL;
 
     // Check username termination
     if (username[USERNAME_SIZE - 1] != '\0')
     {
       response = 0;
 
-      if (send_all(fd, &response, sizeof(response)) != 0)
-        return -1;
+      if (send_all(mainfd, &response, sizeof(response)) != 0)
+        return NULL;
 
       continue;
     }
@@ -64,39 +90,39 @@ int register_client(int fd, int *my_id, char *username)
 
     if (id == -1 && !nomDejaPris(tableClient, username))
     {
-      *my_id = ajoutNouveauClient(tableClient, fd, username);
+      myClient = ajoutNouveauClient(tableClient, mainfd,chatfd, username);
 
       pthread_mutex_unlock(&tableClient->mutex);
 
       response = 1;
 
-      if (send_all(fd, &response, sizeof(response)) != 0)
-        return -1;
+      if (send_all(mainfd, &response, sizeof(response)) != 0)
+        return NULL;
 
-      printf("Client added and connected: %s (ID: %d)\n", username, *my_id);
+      printf("Client added and connected: %s (ID: %d)\n", username, myClient->id);
 
-      return 0;
+      return myClient;
     }
 
     if (tableClient->table[id] != NULL && !tableClient->table[id]->connected)
     {
-      connectClient(tableClient, id, fd);
+      connectClient(tableClient, id, mainfd);
       pthread_mutex_unlock(&tableClient->mutex);
 
       response = 1;
 
-      if (send_all(fd, &response, sizeof(response)) != 0)
-        return -1;
+      if (send_all(mainfd, &response, sizeof(response)) != 0)
+        return NULL;
 
-      printf("Client connected: %s (ID: %d)\n", username, *my_id);
+      printf("Client connected: %s (ID: %d)\n", username, myClient->id);
 
-      return 0;
+      return myClient;
     }
     response = 1;
 
-    if (send_all(fd, &response, sizeof(response)) != 0)
-      return -1;
-    return 0;
+    if (send_all(mainfd, &response, sizeof(response)) != 0)
+      return NULL;
+    return myClient;
   }
 }
 int send_available_players(int fd)
@@ -167,7 +193,7 @@ int get_player_socket(int player_id)
     return -1;
   }
 
-  int player_fd = tableClient->table[player_id]->sockfd;
+  int player_fd = tableClient->table[player_id]->mainSockfd;
 
   pthread_mutex_unlock(&tableClient->mutex);
 
@@ -267,40 +293,47 @@ int handle_challenge(int fd, int my_id, int player_id)
 }
 
 
-Serveur* serveurChat;
+
 
 
 void *comm_client(void *args)
 {
-  int fd = *(int *)args;
+  int mainfd = ((int *)args)[0];
+  int chatfd = ((int *)args)[0];
   free(args);
+  printf("lAYTOOOOOON!!!");
 
   int my_id = 0;
 
   char username[USERNAME_SIZE] = {0};
   char command;
+  Client* myClient;
 
-  // Step 1: Register client
-  if (register_client(fd, &my_id, username) != 0)
-    return cleanup(fd,my_id);
+  // Step 1: Register client 
+  if ((myClient=register_client(mainfd,chatfd) )==NULL ){
+    close (mainfd);
+    close(chatfd);
+    return NULL;
+  }
+    
 
 
   while (1)
   {
     // Step 1: Receive first command
-    if (recv_all(fd, &command, sizeof(command)) != 0)
-      return cleanup(fd,my_id);
+    if (recv_all(myClient->mainSockfd, &command, sizeof(command)) != 0)
+      return cleanup(myClient);
 
     if (command == 'l')
     {
-      if (send_available_players(fd) != 0)
-        return cleanup(fd,my_id);
+      if (send_available_players(myClient->mainSockfd) != 0)
+        return cleanup(myClient);
     }
 
     if (command == 'L')
     {
-      if (send_available_player_ids(fd) != 0)
-        return cleanup(fd,my_id);
+      if (send_available_player_ids(myClient->mainSockfd) != 0)
+        return cleanup(myClient);
     }
 
     if (command == 'x')
@@ -308,25 +341,26 @@ void *comm_client(void *args)
 
       int player_id;
 
-      if (recv_all(fd, &player_id, sizeof(player_id)) != 0)
-        return cleanup(fd,my_id);
+      if (recv_all(myClient->mainSockfd, &player_id, sizeof(player_id)) != 0)
+        return cleanup(myClient);
 
       printf("Player %d wants to challenge player %d\n",
              my_id, player_id);
 
       // Step 6: Handle challenge
-      if (handle_challenge(fd, my_id, player_id) != 0)
-        return cleanup(fd,my_id);
+      if (handle_challenge(myClient->mainSockfd, my_id, player_id) != 0)
+        return cleanup(myClient);
     }
   }
 
 
-  return cleanup(fd,my_id);
+  return cleanup(myClient);
 }
 
 Serveur* initialiserServeur(int port)
 {
   Serveur* serveur;
+  Serveur* serveurChat;
  
   if (port < 1 || port > 65535) {
         fprintf(stderr, "Invalid port number\n");
@@ -356,12 +390,12 @@ Serveur* initialiserServeur(int port)
 
     serveur=malloc(sizeof(Serveur));
     serveur->port=port;
-    serveur->serv_addr=serv_addr;
+    //serveur->serv_addr=serv_addr;
     serveur->socketfd=sockfd;
 
     // Bind socket
-    if (bind(serveur->socketfd, (struct sockaddr *) &(serveur->serv_addr),
-             sizeof(serveur->serv_addr)) < 0) {
+    if (bind(serveur->socketfd, (struct sockaddr *) &(serv_addr),
+             sizeof(serv_addr)) < 0) {
         perror("bind");
         close(sockfd);
         free(serveur);
@@ -382,6 +416,7 @@ Serveur* initialiserServeur(int port)
 int main(int argc, char **argv)
 {
     Serveur* mainServeur;
+    Serveur* serveurChat;
 
     if (argc != 3) {
         fprintf(stderr, "Usage: socket_server <port>\n");
@@ -411,32 +446,46 @@ int main(int argc, char **argv)
     tableClient = initialiserTableClient(MAX_PLAYER_ONLINE);
     int end = 0;
     while (!end) {
-        struct sockaddr_in cli_addr = {0};
-        socklen_t clilen = sizeof(cli_addr);
 
         // Wait for a client
-        int scomm = accept(mainServeur->socketfd, (struct sockaddr *)&cli_addr, &clilen);
+        int scomm, schat;
 
-        if (scomm < 0) {
-            if (errno == EINTR)
-                continue;
+        if((scomm=connectionToServer(mainServeur))==0)
+        {
+          perror("connexion");
+          continue;
+        } 
+        int portChat=serveurChat->port;
 
-            perror("accept");
-            continue;
+        if(send_all(scomm,&portChat,sizeof(portChat))!=0){
+          close(scomm);
+          perror("sending port");
+          continue;
+
         }
+
+
+        if((schat=connectionToServer(serveurChat))==0)
+        {
+          close(scomm);
+          perror("connexion");
+          continue;
+        } 
 
         printf("Connection accepted!\n");
 
         // Allocate memory for the client socket descriptor
-        int *client_fd = malloc(sizeof(int));
+        int *client_fd = malloc(sizeof(int)*2);
 
         if (client_fd == NULL) {
             perror("malloc");
             close(scomm);
+            close(schat);
             continue;
         }
 
-        *client_fd = scomm;
+        client_fd[0] = scomm;
+        client_fd[1] = schat;
 
         pthread_t threadComm;
 
@@ -453,6 +502,7 @@ int main(int argc, char **argv)
 
             free(client_fd);
             close(scomm);
+            close(schat);
             continue;
         }
 

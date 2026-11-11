@@ -29,20 +29,20 @@ TableClient* initialiserTableClient(int taille)
 
 }
 
-int ajoutNouveauClient(TableClient* tableClient, int sockfd,char* nomUtilisateur)
+Client* ajoutNouveauClient(TableClient* tableClient, int mainSockfd,int chatSockfd,char* nomUtilisateur)
 {
     Client* nouveauClient=malloc(sizeof(Client));
     int premierePlace=premierePlaceLibre(tableClient);
     nouveauClient->estDisponible=1;
     nouveauClient->connected=1;
-    nouveauClient->sockfd=sockfd;
+    nouveauClient->mainSockfd=mainSockfd;
     nouveauClient->id=premierePlace;
     nouveauClient->nomUtilisateur=malloc(sizeof(char)*(USERNAME_SIZE));
     strcpy(nouveauClient->nomUtilisateur,nomUtilisateur);
     tableClient->table[premierePlace]=nouveauClient;
     tableClient->current_size++;
     tableClient->connected_size++;
-    return premierePlace;
+    return nouveauClient;
 }
 
 int premierePlaceLibre(TableClient *tableClient)
@@ -123,7 +123,8 @@ int connectClient(TableClient* tableClient, int id, int sockfd)
       tableClient->connected_size++;
       tableClient->table[id]->connected = 1;
       tableClient->table[id]->estDisponible = 1;
-      tableClient->table[id]->sockfd = sockfd;
+      tableClient->table[id]->mainSockfd = -1;
+      tableClient->table[id]->chatSockfd = -1;
       return 1;
     }
     return -1;
@@ -141,7 +142,8 @@ int disconnectClient(TableClient* tableClient,int id)
       tableClient->connected_size--;
       tableClient->table[id]->connected = 0;
       tableClient->table[id]->estDisponible = 0;
-      tableClient->table[id]->sockfd = -1;
+      tableClient->table[id]->mainSockfd = -1;
+      tableClient->table[id]->chatSockfd = -1;
       return 1;
     }
     return -1;

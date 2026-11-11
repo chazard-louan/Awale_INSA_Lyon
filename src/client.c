@@ -440,12 +440,45 @@ int lancerChallenge(int sockfd)
 
     return 0;
 }
+int connectionToServer(int port,char* address)
+{
+  int sockfd;
+  struct sockaddr_in serv_addr = {0};
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(port);
+
+    if (inet_pton(AF_INET, address, &serv_addr.sin_addr) != 1)
+    {
+        fprintf(stderr, "Invalid server IP address.\n");
+        return 0;
+    }
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (sockfd < 0)
+    {
+        perror("socket");
+        return 0;
+    }
+
+    if (connect(sockfd, (struct sockaddr *)&serv_addr,
+                sizeof(serv_addr)) < 0)
+    {
+        perror("connect");
+        close(sockfd);
+        return 0;
+    }
+    return sockfd;
+}
 
 
 int main(int argc, char **argv)
 {
-    int sockfd;
+    int mainSockfd;
+    int chatSockfd;
     char c;
+    int portChat;
 
     if (argc != 3)
     {
@@ -455,38 +488,31 @@ int main(int argc, char **argv)
 
     printf("Client starting...\n");
 
-    struct sockaddr_in serv_addr = {0};
-
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(atoi(argv[2]));
-
-    if (inet_pton(AF_INET, argv[1], &serv_addr.sin_addr) != 1)
+    if ((mainSockfd=connectionToServer(atoi(argv[2]),argv[1]))==0)
     {
-        fprintf(stderr, "Invalid server IP address.\n");
-        return EXIT_FAILURE;
+      return EXIT_FAILURE;
     }
 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-    if (sockfd < 0)
+    if(recv_all(mainSockfd,&portChat,sizeof(portChat))!=0)
     {
-        perror("socket");
-        return EXIT_FAILURE;
+      close(mainSockfd);
+      return EXIT_FAILURE;
     }
+    printf("%d",portChat);
+    
 
-    if (connect(sockfd, (struct sockaddr *)&serv_addr,
-                sizeof(serv_addr)) < 0)
+    if ((chatSockfd=connectionToServer(portChat,argv[1]))==0)
     {
-        perror("connect");
-        close(sockfd);
-        return EXIT_FAILURE;
+      close(mainSockfd);
+      return EXIT_FAILURE;
     }
 
     printf("Connected to server!\n");
 
-    if (authentification(sockfd) != 0)
+    if (authentification(mainSockfd) != 0)
     {
-        close(sockfd);
+        close(chatSockfd);
+        close(mainSockfd);
         return EXIT_FAILURE;
     }
 
@@ -512,7 +538,7 @@ int main(int argc, char **argv)
 
         if (c == 'l')
         {
-            if (afficherJoueurs(sockfd) != 0)
+            if (afficherJoueurs(mainSockfd) != 0)
             {
                 printf("Communication error.\n");
                 break;
@@ -520,7 +546,7 @@ int main(int argc, char **argv)
         }
         else if (c == 'x')
         {
-            if (lancerChallenge(sockfd) != 0)
+            if (lancerChallenge(mainSockfd) != 0)
             {
                 printf("Communication error.\n");
                 break;
@@ -528,15 +554,16 @@ int main(int argc, char **argv)
         }
         else if (c == 'c')
         {
-            if (recevoirChallenge(sockfd) != 0)
+            if (recevoirChallenge(mainSockfd) != 0)
             {
                 printf("Communication error.\n");
                 break;
             }
         }
     }
+    close(chatSockfd);
 
-    close(sockfd);
+    close(mainSockfd);
 
     printf("Disconnected from server.\n");
 
