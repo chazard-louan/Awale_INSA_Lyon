@@ -78,7 +78,7 @@ int register_client(int fd, int *my_id, char *username)
 
     if (id == -1 && !nomDejaPris(tableClient, username))
     {
-      printf("id disconected not found and username not already taken : %s\n", username);
+      printf("id disconnected not found and username not already taken : %s\n", username);
 
       *my_id = ajoutNouveauClient(tableClient, fd, username);
 
@@ -95,29 +95,35 @@ int register_client(int fd, int *my_id, char *username)
       return 0;
     }
 
-    if (tableClient->table[id] != NULL && !tableClient->table[id]->connected)
+    if (id != -1)
     {
-      printf("id disconnected found and username already taken but disconnected, so connecting: %s\n", username);
+      printf("Disconnected user found, reconnecting: %s\n", username);
+
+      *my_id = id;
       connectClient(tableClient, id, fd);
+
       pthread_mutex_unlock(&tableClient->mutex);
 
       printf("Respond positively to client : %s\n", username);
       response = 1;
 
+      printf("Client connected: %s (ID: %d)\n", username, *my_id);
+
       if (send_all(fd, &response, sizeof(response)) != 0)
         return -1;
 
-      printf("Client connected: %s (ID: %d)\n", username, *my_id);
-
       return 0;
     }
-    printf("id disconected not found and username already taken but disconnected, so connecting: %s\n", username);
+
+    printf("id disconected not found and username already taken: %s\n", username);
     pthread_mutex_unlock(&tableClient->mutex);
+
+    printf("Respond negativly to client : %s\n", username);
     response = 0;// respond invalid username
 
     if (send_all(fd, &response, sizeof(response)) != 0)
       return -1;
-    return 0;
+    //try again
   }
 }
 int send_available_players(int fd)

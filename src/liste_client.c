@@ -79,29 +79,43 @@ int userExist(TableClient* tableClient, char*nom)
   return 0;
 }
 
-int getExistingUserId(TableClient* tableClient, char*nom)
+int getExistingUserId(TableClient* tableClient, char* nom)
 {
-  for (int i=0;i<tableClient->taille;i++)
+  if (tableClient == NULL || nom == NULL)
+    return -1;
+
+  for (int i = 0; i < tableClient->taille; i++)
   {
-    if(tableClient->table[i] !=NULL && !tableClient->table[i]->connected && strcmp(nom, tableClient->table[i]->nomUtilisateur)==0)
+    if (tableClient->table[i] != NULL &&
+        tableClient->table[i]->nomUtilisateur != NULL &&
+        !tableClient->table[i]->connected &&
+        strcmp(nom, tableClient->table[i]->nomUtilisateur) == 0)
     {
       return i;
     }
   }
+
   return -1;
 }
 
-int nomDejaPris(TableClient* tableClient, char*nom)
+int nomDejaPris(TableClient* tableClient, char* nom)
 {
-    for (int i=0;i<tableClient->taille;i++)
-    {
-        if(tableClient->table[i] !=NULL && strcmp(nom, tableClient->table[i]->nomUtilisateur)==0)
-        {
-            return 1;
-        }
-    }
+  if (tableClient == NULL || nom == NULL)
     return 0;
+
+  for (int i = 0; i < tableClient->taille; i++)
+  {
+    if (tableClient->table[i] != NULL &&
+        tableClient->table[i]->nomUtilisateur != NULL &&
+        strcmp(nom, tableClient->table[i]->nomUtilisateur) == 0)
+    {
+      return 1;
+    }
+  }
+
+  return 0;
 }
+
 
 Client* rechercherClientParID(TableClient* tableClient,int id)
 {
