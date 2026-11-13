@@ -238,7 +238,7 @@ int get_player_socket(int player_id)
   return player_fd;
 }
 
-void handle_game(int fd1, int fd2)
+int handle_game(int fd1, int fd2)
 {
   int coup;
 
@@ -247,8 +247,7 @@ void handle_game(int fd1, int fd2)
     // Receive move from player 1
     printf("\nWaiting for player 1 to move...\n");
     fflush(stdout);
-    if (recv_all(fd1, &coup, sizeof(coup)) != 0)
-      break;
+    if (recv_all(fd1, &coup, sizeof(coup)) != 0) {return -1;}
 
     printf("Move %d received from player 1\n", coup);
 
@@ -256,20 +255,19 @@ void handle_game(int fd1, int fd2)
     {
       printf("%d move END of the game\n", coup);
       printf("Forwarding %d move to player 2\n", coup);
-      if (send_all(fd2, &coup, sizeof(coup)) != 0)
-      break;
+      if (send_all(fd2, &coup, sizeof(coup)) != 0) {return -1;}
+      return 0;
     }
 
     // Forward move to player 2
     printf("Forwarding %d move to player 2\n", coup);
-    if (send_all(fd2, &coup, sizeof(coup)) != 0)
-      break;
+    if (send_all(fd2, &coup, sizeof(coup)) != 0) {return -1;}
 
     // Receive next move from player 2
     printf("Waiting for player 2 to move...\n");
     fflush(stdout);
-    if (recv_all(fd2, &coup, sizeof(coup)) != 0)
-      break;
+
+    if (recv_all(fd2, &coup, sizeof(coup)) != 0) {return -1;}
     printf("\nMove %d received from player 2\n", coup);
 
     if (coup == 0)
@@ -277,13 +275,12 @@ void handle_game(int fd1, int fd2)
       printf("%d move END of the game\n", coup);
       printf("\nForwarding %d move to player 1\n", coup);
       if (send_all(fd1, &coup, sizeof(coup)) != 0)
-      break;
+      return 0;
     }
 
     // Forward move to player 1
     printf("\nForwarding %d move to player 1\n", coup);
-    if (send_all(fd1, &coup, sizeof(coup)) != 0)
-      break;
+    if (send_all(fd1, &coup, sizeof(coup)) != 0) {return -1;}
   }
 }
 
@@ -364,7 +361,8 @@ int handle_challenge(int fd, int my_id, int player_id)
 
 
   // Allocate memory for the client socket descriptor
-  int *client_fd = malloc(sizeof(int));
+  int *client_fd = malloc(3 * sizeof(int));
+
 
   if (client_fd == NULL) {
     perror("malloc");
@@ -544,7 +542,8 @@ int main(int argc, char **argv)
         printf("Connection accepted!\n");
 
         // Allocate memory for the client socket descriptor
-        int *client_fd = malloc(sizeof(int));
+        int *client_fd = malloc(3 * sizeof(int));
+
 
         if (client_fd == NULL) {
             perror("malloc");

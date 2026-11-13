@@ -4,20 +4,21 @@
 #include <stdlib.h>
 #include "joueur.h"
 
+#include <string.h>
+
 Joueur* constructJoueur(int id)
 {
-    Joueur* joueur;
-    joueur=malloc(sizeof(Joueur));
-    joueur->id=id;
-    joueur->score=0;
-    return joueur;
+  Joueur* joueur;
+  joueur=malloc(sizeof(Joueur));
+  joueur->id=id;
+  joueur->score=0;
+  return joueur;
 }
 
 void destructJoueur(Joueur* joueur)
 {
-    if (joueur!=NULL)
-    {
-        free(joueur);
-    }
-    
+  if (joueur!=NULL)
+  {
+    free(joueur);
+  }
 }

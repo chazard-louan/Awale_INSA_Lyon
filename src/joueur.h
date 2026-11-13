@@ -4,11 +4,13 @@
 
 #ifndef AWALE_JOUEUR_H
 #define AWALE_JOUEUR_H
+#include "constants.h"
 
 struct Joueur
 {
   int id;
   int score;
+  char* name;
 };
 typedef struct Joueur Joueur;
 Joueur* constructJoueur(int id);

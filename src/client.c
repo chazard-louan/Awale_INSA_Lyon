@@ -12,50 +12,98 @@
 #include "plateau.h"
 
 
-void afficherPlateau(Plateau* plateau, Joueur* joueur1, Joueur* joueur2)
-{
-    int i;
+char username[USERNAME_SIZE];
 
-    printf("\t\t Joueur 1\n");
+void afficherPlateau(Plateau* plateau, Joueur* joueur1, Joueur* joueur2, int asPlayer)
+{
+  int i;
+  if (asPlayer == 0)
+  {
+    printf("\t\t OPPONENT\n");
     printf("        ");
 
     for (i = 6; i > 0; i--)
-        printf("%d    ", i);
+      printf("%d    ", i);
 
     printf("\n");
 
     for (i = 0; i < 41; i++)
-        printf("_");
+      printf("_");
+
+    printf("\n| S%d |", joueur2->id);
+
+    for (i = 6; i >= 1; i--)
+      printf(" %2d |", recupererChamp(plateau, joueur2, i));
+
+    printf("    |\n");
+
+    printf("| %2d |", joueur2->score);
+
+    for (i = 0; i < 29; i++)
+      printf("-");
+
+    printf("| %2d |\n", joueur1->score);
+    printf("|    |");
+
+    for (i = 1; i <= 6; i++)
+      printf(" %2d |", recupererChamp(plateau, joueur1, i));
+
+    printf(" S%d |\n", joueur1->id);
+
+    for (i = 0; i < 41; i++)
+      printf("-");
+
+    printf("\n        ");
+
+    for (i = 1; i <= 6; i++)
+      printf("%d    ", i);
+
+    printf("\n\t\t YOU\n");
+  }
+  else
+  {
+    printf("\t\t OPPONENT\n");
+    printf("        ");
+
+    for (i = 6; i > 0; i--)
+      printf("%d    ", i);
+
+    printf("\n");
+
+    for (i = 0; i < 41; i++)
+      printf("_");
 
     printf("\n| S%d |", joueur1->id);
 
     for (i = 6; i >= 1; i--)
-        printf(" %2d |", recupererChamp(plateau, joueur1, i));
+      printf(" %2d |", recupererChamp(plateau, joueur1, i));
 
     printf("    |\n");
 
     printf("| %2d |", joueur1->score);
 
     for (i = 0; i < 29; i++)
-        printf("-");
+      printf("-");
 
     printf("| %2d |\n", joueur2->score);
     printf("|    |");
 
     for (i = 1; i <= 6; i++)
-        printf(" %2d |", recupererChamp(plateau, joueur2, i));
+      printf(" %2d |", recupererChamp(plateau, joueur2, i));
 
     printf(" S%d |\n", joueur2->id);
 
     for (i = 0; i < 41; i++)
-        printf("-");
+      printf("-");
 
     printf("\n        ");
 
     for (i = 1; i <= 6; i++)
-        printf("%d    ", i);
+      printf("%d    ", i);
 
-    printf("\n\t\t Joueur 2\n");
+    printf("\n\t\t YOU\n");
+  }
+
 }
 
 
@@ -92,7 +140,6 @@ int authentification(int sockfd)
 {
     while (1)
     {
-        char username[USERNAME_SIZE] = {0};
 
         printf("Enter username (maximum %d characters): ",
                USERNAME_SIZE - 1);
@@ -227,10 +274,12 @@ int jouerPartie(int sockfd, int player_id)
 
     if (joueurs == NULL)
     {
-        // Adapt this if your plateau API has a destructor.
         return -1;
     }
+    if (player_id == 0)
+    {
 
+    }
     joueurs[0] = constructJoueur(1);
     joueurs[1] = constructJoueur(2);
 
@@ -247,7 +296,7 @@ int jouerPartie(int sockfd, int player_id)
     {
         printf("\n");
 
-        afficherPlateau(plateau, joueurs[0], joueurs[1]);
+        afficherPlateau(plateau, joueurs[0], joueurs[1], player_id);
 
         printf("\n");
 
@@ -272,7 +321,7 @@ int jouerPartie(int sockfd, int player_id)
                     joueurs[joueurQuiJoue],
                     coup
                 );
-                if (isValide)
+                if (isValide==1)
                 {
                   if (send_all(sockfd, &coup, sizeof(coup)) != 0)
                   {
@@ -320,7 +369,7 @@ int jouerPartie(int sockfd, int player_id)
 
         if (!joueurPeutJouer(plateau, joueurs[joueurQuiJoue]))
         {
-            afficherPlateau(plateau, joueurs[0], joueurs[1]);
+            afficherPlateau(plateau, joueurs[0], joueurs[1], player_id);
 
             finPartieFamine(plateau, joueurs[joueurQuiJoue]);
 
