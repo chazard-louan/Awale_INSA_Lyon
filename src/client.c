@@ -272,17 +272,18 @@ int jouerPartie(int sockfd, int player_id)
                     joueurs[joueurQuiJoue],
                     coup
                 );
-
-                if (isValide == 1)
+                if (isValide)
                 {
-                    if (send_all(sockfd, &coup, sizeof(coup)) != 0)
-                    {
-                        free(joueurs[0]);
-                        free(joueurs[1]);
-                        free(joueurs);
-                        return -1;
-                    }
+                  if (send_all(sockfd, &coup, sizeof(coup)) != 0)
+                  {
+                    free(joueurs[0]);
+                    free(joueurs[1]);
+                    free(joueurs);
+                    return -1;
+                  }
                 }
+
+
             }
             else
             {
@@ -325,7 +326,12 @@ int jouerPartie(int sockfd, int player_id)
 
             fini = 1;
         }
+
+
     }
+
+    int end = 0;
+    send_all(sockfd, &end, sizeof(end));
 
     free(joueurs[0]);
     free(joueurs[1]);
@@ -377,15 +383,17 @@ int recevoirChallenge(int sockfd)
         printf("[y/n] ?\n");
     }
 
-    if (send_all(sockfd, &answer, sizeof(answer)) != 0)
-        return -1;
+
 
     if (answer == 'y')
     {
-        printf("Challenge accepted!\n");
+      char kill_command = 'k';
+      if (send_all(sockfd, &kill_command, sizeof(kill_command)) != 0) {return -1;}
+      if (send_all(sockfd, &answer, sizeof(answer)) != 0) {return -1;}
+      printf("Challenge accepted!\n");
 
-        // Player 2
-        return jouerPartie(sockfd, 1);
+      // Player 2
+      return jouerPartie(sockfd, 1);
     }
 
     printf("Challenge refused.\n");

@@ -24,6 +24,7 @@ TableClient* initialiserTableClient(int taille)
     if (pthread_mutex_init(&(tableClient->mutex), NULL) != 0) {
       // Gestion d'erreur
     }
+
     pthread_cond_init(&(tableClient->cond), NULL);
     return tableClient;
 
@@ -155,11 +156,15 @@ int retirerClient(TableClient* tableClient,int id)
     {
         if(tableClient->table[id]!=NULL)
         {
+            if (tableClient->table[id]->connected == 1)
+            {
+              tableClient->connected_size--;
+            }
             free(tableClient->table[id]->nomUtilisateur);
             free(tableClient->table[id]);
             tableClient->table[id]=NULL;
             tableClient->current_size--;
-            tableClient->connected_size--;
+
             return 1;
         }
       return -1;
@@ -177,6 +182,7 @@ void destructTableClient(TableClient *tableClient)
         }
     }
     pthread_mutex_destroy(&tableClient->mutex);
+    pthread_cond_destroy(&tableClient->cond);
     free(tableClient->table);
     free(tableClient);
 
